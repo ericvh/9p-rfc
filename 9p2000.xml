@@ -5,7 +5,7 @@
     <!ENTITY rfc2119 PUBLIC ''
       'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
 ]>
-<rfc category="info" ipr="none" docName="9p2000">
+<rfc category="historic" ipr="none" docName="9p2000">
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc toc="yes" ?>
 <?rfc symrefs="yes" ?>

@@ -24,7 +24,7 @@ updates="experimental-draft-9P2000-protocol">
     <uri>http://plan9.bell-labs.com/plan9</uri>
    </address>
   </author>
-  <date month="March" year="2005"/>
+  <date month="August" year="2009"/>
   <area>General</area>
   <keyword>Plan 9</keyword>
   <keyword>9P2000</keyword>
@@ -626,6 +626,7 @@ struct Rerror {
 The 9P2000.u protocol extensions evolved out of contributions from a
 number of people including:
 <list>
+	<t>Abhishek Kilkarni</t>
 	<t>Russ Cox</t>
 	<t>Lachester Ionkov</t>
 	<t>Ron Minnich</t>
