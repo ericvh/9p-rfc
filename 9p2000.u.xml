@@ -13,7 +13,6 @@ updates="experimental-draft-9P2000-protocol">
 <?rfc symrefs="yes" ?>
 <?rfc sortrefs="yes"?>
 <?rfc iprnotified="no" ?>
-<?rfc strict="yes" ?>
  <front>
   <title abbrev="9P2000.u">Plan 9 Remote Resource Protocol Unix Extension</title>
   <author initials='E.V.H.' surname="Van Hensbergen" fullname='Eric Van Hensbergen'>
@@ -120,10 +119,10 @@ via a special extended attribute).
 </section>
 <section title="Permission Modes">
 <t>
-Plan 9 has a different user security model, so there is no such concept
-as set-uid or set-gid permissions.  There is also no equivilent for the
-sticky bit.  Luckily, Plan 9 has plenty of space in higher permission mode
-bit space for such extensions.
+Plan 9 has a different user security model <xref target="P9SEC"/>, so there 
+is no such concept as set-uid or set-gid permissions.  There is also no 
+equivalent for the sticky bit.  Luckily, Plan 9 has plenty of space in 
+higher permission mode bit space for such extensions.
 </t>
 </section>
 <section title="Special Files and Links">
@@ -182,11 +181,25 @@ future as more file systems adopt extended attributes.
    </t>
       <t>
        <vspace/>
-      size[4] Rerror tag[2] ename[s] errno[2]
+      size[4] Rerror tag[2] ename[s] errno[4]
    </t>
 <t>
 <vspace/>
-size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1]
+size[4] Tauth tag[2] afid[4] uname[s] aname[s]
+</t>
+<t>
+size[4] Rauth tag[2] aqid[13]
+</t>
+<t>
+<vspace/>
+size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s]
+</t>
+<t>
+size[4] Rattach tag[2] qid[13]
+</t>
+<t>
+<vspace/>
+size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
 </t>
 <t>
 size[4] Rcreate tag[2] qid[13] iounit[4]
@@ -276,7 +289,7 @@ SYNOPSIS
     <t>
      <list>
       <t>
-       size[4] Rerror tag[2] ename[s] errno[2]
+       size[4] Rerror tag[2] ename[s] errno[4]
 </t>
      </list>
     </t>
@@ -304,6 +317,35 @@ DESCRIPTION
      </list>
     </t>
    </section>
+
+<section title="auth/attach - messages to establish a connection">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+       <t>size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4]</t>
+       <t>size[4] Rattach tag[2] qid[13]</t>
+       <t>size[4] Tauth tag[2] afid[4] uname[s] aname[s] n_uname[4]</t>
+       <t>size[4] Rauth tag[2] aqid[13]</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+	A numeric uname field has been added to the attach and auth messages
+	in order to provide hints to map a string to a numeric id if such
+	a facility is not available.
+	
+	The numeric uname should be given preference over the uname string
+	unless n_uname is unspecified (~0).
+      </t>
+     </list>
+    </t>
+   </section>
    
 <section title="open, create - prepare a fid for I/O on an existing or new file">
     <t>
@@ -312,7 +354,7 @@ DESCRIPTION
     <t>
      <list>
       <t>
-          size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1]
+          size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
    </t>
       <t>
         size[4] Rcreate tag[2] qid[13] iounit[4]
@@ -329,7 +371,11 @@ DESCRIPTION
       permission modes which allow for creation of special files.
       In addition to creating directories with DMDIR, 9P2000.u allows
       the creation of symlinks (DMSYMLINK), devices (DMDEVICE), 
-      named pipes (DMNAMEPIPE), and sockets (DMSOCKET).
+      named pipes (DMNAMEPIPE), and sockets (DMSOCKET). extension[s] 
+      is a string describing special files, depending on the mode bit. 
+      For DSYMLINK files, the string is the target of the link. For 
+      DMDEVICE files, the string is "b 1 2" for a block device with 
+      major 1, minor 2. For normal files, this string is empty.
      </t>
      </list>
     </t>
@@ -497,7 +543,7 @@ enum {
         QTEXCL =           0x20,
         QTMOUNT =          0x10,
         QTAUTH =           0x08,
-	QTTMP =		   0x04,
+        QTTMP =	           0x04,
         QTLINK =           0x02,
         QTFILE =           0x00,
 };
