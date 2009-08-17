@@ -1,0 +1,9 @@
+This is for development of standards-track RFCs for 9P.  At the present 
+3 RFC drafts are planned:
+
+	9P1 		- documenting classic 9P (TODO)
+	9P2000 		- current 9P2000 standard
+	9P2000.u 	- unix extensions to 9P2000
+
+People interested in helping write these suckers should look at
+RFC2223 (Instructions to RFC Authors) and RFC2360 (Best Current Practices).

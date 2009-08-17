@@ -1,0 +1,1543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSPY v5 rel. 3 U (http://www.xmlspy.com)
+     by Daniel M Kohn (private) -->
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+    <!ENTITY rfc2119 PUBLIC ''
+      'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
+]>
+<rfc category="info" ipr="none" docName="9p2000">
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc toc="yes" ?>
+<?rfc symrefs="yes" ?>
+<?rfc sortrefs="yes"?>
+<?rfc iprnotified="no" ?>
+<?rfc strict="yes" ?>
+ <front>
+  <title abbrev="9P2000">Plan 9 Remote Resource Protocol</title>
+  <author initials='E.V.H.' surname="Van Hensbergen" fullname='Eric Van Hensbergen'>
+   <organization>
+		Plan 9 Fans
+	    </organization>
+   <address>
+    <email>9fans@cse.psu.edu</email>
+    <uri>http://plan9.bell-labs.com/plan9</uri>
+   </address>
+  </author>
+  <date month="March" year="2005"/>
+  <area>General</area>
+  <keyword>Plan 9</keyword>
+  <keyword>9P2000</keyword>
+  <keyword>9P</keyword>
+  <abstract>
+   <t>
+	9P is a distributed resource sharing protocol developed as
+	part of the Plan 9 research operating system at AT&T Bell
+	Laboratories (now a part of Lucent Technologies) by the Computer
+	Science Research Center.  It can be used to distributed file
+	systems, devices, and application services.  It was designed as
+	an interface to both local and remote resources, making the
+	transition from local to cluster to grid resources transparent.
+	</t>
+   <t>
+	In addition to being supported under Plan 9 and its offspring
+	the Inferno operating system, there exists kernel drivers for
+	Linux and application libraries supporting other operating
+	systems including BSD, OSX, and Solaris.
+	</t>
+  </abstract>
+ </front>
+ <middle>
+  <section title="Requirements notation">
+   <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL",
+	    "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
+	    and "OPTIONAL" in this document are to be interpreted as
+	    described in <xref target="RFC2119"/>.</t>
+  </section>
+  <section anchor="intro" title="Introduction">
+   <t>
+   A Plan 9 <xref target="PLAN9" /> server is an agent that provides one or more hierarchical
+   file systems -- file trees -- that may be accessed by Plan 9
+   processes.	A server  responds  to requests by clients to navigate
+   the hierarchy, and to create, remove, read, and write files.	 The
+   prototypical server is a separate  machine  that stores large numbers
+   of user files on permanent media; such a machine is called, somewhat
+   confusingly, a  file	 server.  Another possibility for a server is to
+   synthesize files on demand, perhaps based on information on data
+   structures  inside  the  kernel;  the proc(3)  kernel  device  is a
+   part of the Plan 9 kernel that does this.  User programs can also act
+   as servers.
+</t>
+   <t>
+   A connection to a server is a bidirectional communication path from
+   the client to the server.  There may be a single client or multiple
+   clients sharing the same connection.	 A server's file tree  is
+   attached  to	 a process  group's  name  space by bind(2) and mount
+   calls; see intro(2).	 Processes in the group are then clients of  the
+   server:  system  calls operating on files are translated into
+   requests and responses transmitted on the connection to the
+   appropriate service.
+</t>
+   <t>
+   The Plan 9 File Protocol, 9P, is used for messages between clients
+   and servers.	  A  client transmits requests (T-messages) to a server,
+   which subsequently returns replies (R-messages) to the client.  The
+   combined acts  of  transmitting  (receiving) a request of a
+   particular type, and receiving (transmitting) its reply is  called  a
+   transaction	of  that type.
+</t>
+   <t>
+   Each	 message consists of a sequence of bytes.  Two-, four-, and
+   eight-byte fields hold unsigned integers represented in  little-
+   endian  order (least	 significant  byte  first).   Data  items  of
+   larger or variable lengths are represented by a two-byte field
+   specifying a count, n, followed  by n bytes of data.	 Text strings
+   are represented this way, with the text itself stored as a UTF-8
+   encoded sequence of	Unicode characters (see utf(6)).  Text strings
+   in 9P messages are not NUL-terminated: n counts the bytes of UTF-8
+   data, which include	no  final  zero	 byte.	The  NUL  character is
+   illegal in all text strings in 9P, and is therefore excluded from
+   file names, user names, and so on.
+</t>
+   <t>
+   Each 9P message begins with	a  four-byte  size  field  specifying
+   the length in bytes of the complete message including the four bytes
+   of the size field itself.  The next byte is the message type, one of
+   the constants  in the enumeration in the include file fcall.h.  The
+   next two bytes are an identifying tag, described below.  The
+   remaining bytes are parameters of different sizes.  In the message
+   descriptions, the number of bytes in a field is given in brackets
+   after  the  field  name.   The notation  parameter[n] where n is not
+   a constant represents a variable-length parameter: n[2] followed by n
+   bytes of data forming the parameter.	 The notation string[s] (using a
+   literal s character) is shorthand for s[2] followed by s bytes of
+   UTF-8 text.	 (Systems  may	choose	to reduce  the	set  of legal
+   characters to reduce syntactic problems, for example to remove
+   slashes from name components, but the protocol has no such
+   restriction.	  Plan	9  names may contain any printable character
+   (that is, any character outside hexadecimal	00-1F  and  80-9F)
+   except slash.)   Messages  are  transported	in byte form to allow
+   for machine independence; fcall(2) describes routines that convert to
+   and from this form into a machine-dependent C structure.
+	</t>
+   <section anchor="msgs" title="Messages">
+    <t>
+     <list style="empty">
+      <t>
+      size[4] Tversion tag[2] msize[4] version[s]
+   </t>
+      <t>
+      size[4] Rversion tag[2] msize[4] version[s]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tauth tag[2] afid[4] uname[s] aname[s]
+   </t>
+      <t>
+      size[4] Rauth tag[2] aqid[13]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Rerror tag[2] ename[s]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tflush tag[2] oldtag[2]
+   </t>
+      <t>
+      size[4] Rflush tag[2]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s]
+   </t>
+      <t>
+      size[4] Rattach tag[2] qid[13]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Twalk tag[2] fid[4] newfid[4] nwname[2] nwname*(wname[s])
+   </t>
+      <t>
+      size[4] Rwalk tag[2] nwqid[2] nwqid*(wqid[13])
+   </t>
+      <t>
+       <vspace/>
+      size[4] Topen tag[2] fid[4] mode[1]
+   </t>
+      <t>
+      size[4] Ropen tag[2] qid[13] iounit[4]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1]
+   </t>
+      <t>
+      size[4] Rcreate tag[2] qid[13] iounit[4]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tread tag[2] fid[4] offset[8] count[4]
+   </t>
+      <t>
+      size[4] Rread tag[2] count[4] data[count]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Twrite tag[2] fid[4] offset[8] count[4] data[count]
+   </t>
+      <t>
+      size[4] Rwrite tag[2] count[4]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tclunk tag[2] fid[4]
+   </t>
+      <t>
+      size[4] Rclunk tag[2]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tremove tag[2] fid[4]
+   </t>
+      <t>
+      size[4] Rremove tag[2]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Tstat tag[2] fid[4]
+   </t>
+      <t>
+      size[4] Rstat tag[2] stat[n]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Twstat tag[2] fid[4] stat[n]
+   </t>
+      <t>
+      size[4] Rwstat tag[2]
+   </t>
+     </list>
+    </t>
+    <t>
+   Each T-message has a tag field, chosen and used by the client to
+   identify  the  message.   The  reply to the message will have the
+   same tag.  Clients must arrange that no two outstanding messages on
+   the same connection	have  the same tag.  An exception is the tag
+   NOTAG, defined as (ushort)~0 in fcall.h: the client can use	it,
+   when	 establishing  a connection, to override tag matching in version
+   messages.
+</t>
+    <t>
+   The	type  of  an R-message will either be one greater than the type
+   of the corresponding T-message or  Rerror,  indicating  that	 the
+   request failed.  In the latter case, the ename field contains a
+   string describing the reason for failure.
+
+</t>
+    <t>
+   The version message identifies the version of the  protocol	and
+   indicates  the  maximum  message size the system is prepared to
+   handle.  It also initializes the connection and aborts all
+   outstanding I/O  on	the connection.	  The  set of messages between
+   version requests is called a session.
+</t>
+    <t>
+   Most T-messages contain a fid,  a  32-bit  unsigned	integer	 that
+   the client  uses  to	 identify  a ``current file'' on the server.
+   Fids are somewhat like file descriptors in a user  process,	but
+   they	 are  not restricted  to  files	 open  for I/O: directories
+   being examined, files being accessed by stat(2) calls, and so on --
+   all files  being manipulated by the operating system -- are
+   identified by fids.	Fids are chosen by the client.	All requests on
+   a connection	 share	the  same  fid space;  when several clients
+   share a connection, the agent managing the sharing must arrange that
+   no two clients choose the same fid.
+</t>
+    <t>
+   The fid supplied in an attach message will be taken by  the	server
+   to refer  to	 the root of the served file tree.  The attach
+   identifies the user to the server and may specify a particular file
+   tree served by the server (for those that supply more than one).
+</t>
+    <t>
+   Permission  to  attach  to the service is proven by providing a
+   special fid, called afid, in the attach message.  This afid is
+   established	by exchanging  auth  messages  and subsequently
+   manipulated using read and write messages  to  exchange
+   authentication  information	not  defined explicitly	 by  9P <xref target="P9SEC"/>.   Once
+   the authentication protocol is complete, the afid is presented in the
+   attach to permit the user to access	the service.
+</t>
+    <t>
+   A  walk message causes the server to change the current file
+   associated with a fid to be a file in the directory that is the old
+   current  file, or  one  of  its subdirectories.  Walk returns a new
+   fid that refers to the resulting file.  Usually, a client maintains a
+   fid	for  the  root, and navigates by walks from the root fid.
+</t>
+    <t>
+   A  client  can  send multiple T-messages without waiting for the
+   corresponding R-messages, but all outstanding T-messages must
+   specify different  tags.   The  server  may	delay  the  response to
+   a request and respond to later ones; this is sometimes necessary,
+   for	example	 when the  client reads from a file that the server
+   synthesizes from external events such as keyboard characters.
+</t>
+    <t>
+   Replies (R-messages) to auth, attach, walk, open, and  create
+   requests convey a qid field back to the client.  The qid represents
+   the server's unique identification for the file being accessed:  two
+   files  on  the same	server	hierarchy  are the same if and only if
+   their qids are the same.  (The client may have multiple fids pointing
+   to a single file  on a  server and hence having a single qid.)  The
+   thirteen-byte qid fields hold a one-byte type, specifying  whether
+   the	file  is  a  directory, append-only  file, etc., and two
+   unsigned integers: first the four-byte qid version, then the eight-
+   byte qid path.   The	 path  is  an  integer unique  among  all  files
+   in  the hierarchy.  If a file is deleted and recreated with the same
+   name in the same directory,	the  old  and  new path components of
+   the qids should be different.  The version is a version number for a
+   file; typically, it is  incremented	every  time  the file is
+   modified.
+</t>
+    <t>
+   An  existing	 file  can  be opened, or a new file may be created in
+   the current (directory) file.  I/O of a given number of bytes  at  a
+   given offset on an open file is done by read and write.
+</t>
+    <t>
+   A  client  should  clunk  any fid that is no longer needed.	The
+   remove transaction deletes files.
+</t>
+    <t>
+   The stat transaction retrieves information about the	 file.	 The
+   stat field  in the reply includes the file's name, access permissions
+   (read, write and execute for owner, group and public), access and
+   modification times,	and  owner  and group identifications (see
+   stat(2)).  The owner and group identifications are textual  names.
+   The	wstat  transaction allows some of a file's properties to be
+   changed.
+   A  request can be aborted with a flush request.  When a server
+   receives a Tflush, it should not reply to the message with tag oldtag
+   (unless it has  already  replied),  and it should immediately send an
+   Rflush.  The client must wait until it gets the Rflush (even if  the
+   reply  to  the original  message arrives in the interim), at which
+   point oldtag may be reused.
+</t>
+    <t>
+   Because the message size is negotiable and some elements of the
+   protocol  are  variable length, it is possible (although unlikely) to
+   have a situation where a valid message is too large to fit within the
+   negotiated size.  For example, a very long file name may cause a
+   Rstat of the file or Rread of its directory entry to be too large to
+   send.  In  most such	 cases, the server should generate an error
+   rather than modify the data to fit, such as by truncating the file
+   name.   The	exception  is that  a  long  error string in an Rerror
+   message should be truncated if necessary, since the string is only
+   advisory and in  some  sense arbitrary.
+</t>
+    <t>
+   Most	 programs  do  not  see the 9P protocol directly; instead calls
+   to library routines that access files are translated by the mount
+   driver, mnt(3), into 9P messages.
+</t>
+   </section>
+   <section anchor="dirs" title="Directories">
+    <t>
+   Directories	are  created  by  create with DMDIR set in the
+   permissions argument (see stat(5)).	The members of a directory can
+   be  found  with read(5).  All directories must support walks to the
+   directory ..	 (dot-dot) meaning parent directory, although by
+   convention directories contain  no  explicit	 entry	for ..	or .
+   (dot).  The parent of the root directory of a server's tree is
+   itself.
+</t>
+    <t>
+   Each file server maintains a set of user and group  names.	Each
+   user can be a member of any number of groups.  Each group has a group
+   leader who has special privileges (see  stat(5)  and	 users(6)).
+   Every  file request	has  an implicit user id (copied from the
+   original attach) and an implicit set of groups (every group of which
+   the user is a  member).
+</t>
+   </section>
+   <section anchor="access" title="Access Permissions">
+    <t>
+   Each	 file  has an associated owner and group id and three sets of
+   permissions: those of  the  owner,  those  of  the  group,  and
+   those  of ``other''	users.	 When  the owner attempts to do
+   something to a file, the owner, group, and other permissions are
+   consulted, and  if  any  of them  grant  the	 requested  permission,
+   the operation is allowed.  For someone who is not the owner, but is a
+   member of the file's group,	the group  and	other  permissions  are
+   consulted.  For everyone else, the other permissions are used.  Each
+   set of permissions says whether reading  is	allowed,  whether
+   writing is allowed, and whether executing is allowed.  A walk in a
+   directory is regarded as executing the directory, not reading it.
+   Permissions are kept in the low-order bits of the file mode: owner
+   read/write/execute permission represented as 1 in  bits  8, 7,  and
+   6  respectively  (using 0 to number the low order).	The group
+   permissions are in bits 5, 4, and 3, and the other permissions  are
+   in bits 2, 1, and 0.
+</t>
+    <t>
+   The	file  mode contains some additional attributes besides the
+   permissions.	 If bit 31 (DMDIR) is set, the file is a directory; if
+   bit	30 (DMAPPEND)  is  set,	 the  file  is	append-only  (offset is
+   ignored in writes); if bit 29 (DMEXCL) is set, the file is exclusive-
+   use (only one client may have it open at a time); if bit 27 (DMAUTH)
+   is set, the file is an authentication file established  by  auth
+   messages;  if  bit  26 (DMTMP)  is  set,  the  contents  of	the
+   file	 (or directory) are not included in nightly archives.  (Bit 28
+   is skipped for  historical reasons.)	  These	 bits are reproduced,
+   from the top bit down, in the type byte of the Qid: QTDIR, QTAPPEND,
+   QTEXCL, (skipping  one  bit)	 QTAUTH, and  QTTMP.   The name QTFILE,
+   defined to be zero, identifies the value of the type for a plain
+   file.
+</t>
+   </section>
+   <section title="General Definitions">
+    <t>
+     TODO: Include defintions of general terms used throughout document
+  </t>
+   </section>
+  </section>
+  <section title="Protocol Data Types">
+   <section title="Basic Data Types">
+    <t> TODO: cover how we define data types in our protocol synopsis</t>
+   </section>
+   <section title="Structured Data Types">
+    <t> TODO: cover any structs (like stat) that the protocol uses</t>
+   </section>
+  </section>
+  <section title = "Transport and Security Options">
+   <section title = "Transport Options">
+    <t> TODO: Describe Transport pre-reqs </t>
+    <section title = "TCP/IP">
+     <t> TODO: describe TCP/IP transport embodiment </t>
+    </section>
+    <section title = "Function Call">
+     <t> TODO: describe function call embodiment </t>
+    </section>
+    <section title = "Pipe">
+     <t> TODO: describe pipe embodiment </t>
+    </section>
+    <section title = "Shared Memory">
+     <t> TODO: describe shared memory embodiment</t>
+    </section>
+   </section>
+   <section title = "Security">
+    <section title = "Plan 9 Authentication Model">
+     <t>TODO: describe Plan 9 Authentication Model</t>
+    </section>
+    <section title = "u9fs rhosts model">
+     <t>TODO: describe rhosts model</t>
+    </section>
+    <section title = "Challenge/Response model">
+     <t>TODO: describe u9fs challenge/response model</t>
+    </section>
+    <section title = "noauth">
+     <t>TODO: describe noauth model</t>
+    </section>
+   </section>
+  </section>
+  <section title = "File Handles">
+   <t>TODO: describe FIDs in some detail</t>
+  </section>
+  <section title = "File Attributes">
+   <t>TODO: describe stat in some detail - perhaps steal from protocol section</t>
+  </section>
+  <section title = "Namespace">
+   <t>TODO: describe Plan 9 dynamic namespace and how it relates to 9P</t>
+  </section>
+  <section title = "Locking">
+   <t>TODO: describe Plan 9 locking semantics (OEXCL)</t>
+  </section>
+  <section title = "Client-Side Caching">
+   <t>TODO: describe Plan 9 cache semantics and limitations (ref. cfs)</t>
+  </section>
+  <section title = "Versioning">
+   <t>TODO: describe protocol versioning in detail (steal from Protocol section)</t>
+  </section>
+  <section title = "Internationalization">
+   <t>TODO: describe 9P rune support</t>
+  </section>
+  <section title = "Error Definitions">
+   <t>TODO: enumerate standard file system error strings and describe possibility
+    of application error strings</t>
+  </section>
+  <section anchor="protocol" title="Protocol Operations">
+   <section anchor="version" title="version - negotiate protocol version">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list style="empty">
+      <t>size[4] Tversion tag[2] msize[4] version[s]</t>
+      <t>size[4] Rversion tag[2] msize[4] version[s]</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list style="empty">
+      <t>
+       The version request negotiates the protocol version and message size to
+       be used on the connection  and  initializes  the	 connection  for  I/O.
+       Tversion	 must  be the first message sent on the 9P connection, and the
+       client cannot issue any further requests	 until	it  has	 received  the
+       Rversion	 reply.	 The tag should be NOTAG (value (ushort)~0) for a ver-
+       sion message.
+</t>
+      <t>
+       <vspace/>
+       The client suggests a maximum message size, msize, that is the  maximum
+       length,	in bytes, it will ever generate or expect to receive in a sin-
+       gle 9P message.	This count includes all	 9P  protocol  data,  starting
+       from  the  size	field  and extending through the message, but excludes
+       enveloping transport protocols.	The server responds with its own maxi-
+       mum,  msize,  which  must  be less than or equal to the client's value.
+       Thenceforth, both sides of the connection must honor this limit.
+</t>
+      <t>
+       <vspace/>
+
+       The version string identifies the level of the  protocol.   The	string
+       must  always  begin with the two characters ``9P''.  If the server does
+       not understand the client's version string, it should respond  with  an
+       Rversion	 message (not Rerror) with the version string the 7 characters
+       ``unknown''.
+</t>
+      <t>
+       <vspace/>
+
+       The server may respond with the client's version string, or  a  version
+       string identifying an earlier defined protocol version.	Currently, the
+       only defined version is the 6 characters ``9P2000''.   Version  strings
+       are defined such that, if the client string contains one or more period
+       characters, the initial substring up to but not	including  any	single
+       period  in the version string defines a version of the protocol.	 After
+       stripping any such period-separated suffix, the server  is  allowed  to
+       respond	with  a	 string of the form 9Pnnnn, where nnnn is less than or
+       equal to the digits sent by the client.
+</t>
+      <t>
+       <vspace/>
+
+       The client and server will use the  protocol  version  defined  by  the
+       server's response for all subsequent communication on the connection.
+</t>
+      <t>
+       <vspace/>
+
+       A successful version request initializes the connection.	 All outstand-
+       ing I/O on the  connection  is  aborted;	 all  active  fids  are	 freed
+       (`clunked')   automatically.   The  set	of  messages  between  version
+       requests is called a session.
+</t>
+     </list>
+    </t>
+    <t>ENTRY POINTS</t>
+    <t>
+     <list style="empty">
+      <t>
+       The version message is generated by the fversion system	call.	It  is
+       also  generated	automatically, if required, by a mount or fauth system
+       call on an uninitialized connection.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="attach, auth - messages to establish a connection">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+       size[4] Tauth tag[2] afid[4] uname[s] aname[s]
+</t>
+      <t>
+       size[4] Rauth tag[2] aqid[13]
+</t>
+      <t>
+       <vspace/>
+       size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s]
+</t>
+      <t>
+	size[4] Rattach tag[2] qid[13]
+</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+       The  attach  message  serves as a fresh introduction from a user on the
+       client machine to the server.  The message identifies the user  (uname)
+       and  may	 select	 the  file  tree to access (aname).  The afid argument
+       specifies a fid previously established by an auth message, as described
+       below.
+</t>
+      <t>
+       <vspace/>
+       As  a  result of the attach transaction, the client will have a connec-
+       tion to the root directory of the desired  file	tree,  represented  by
+       fid.  An error is returned if fid is already in use.  The server's idea
+       of the root of the file tree is represented by the returned qid.
+</t>
+      <t>
+       <vspace/>
+       If the client does not wish to authenticate the	connection,  or	 knows
+       that  authentication is not required, the afid field in the attach mes-
+       sage should be set to NOFID, defined as (u32int)~0  in  fcall.h.	  If
+       the  client  does wish to authenticate, it must acquire and validate an
+       afid using an auth message before doing the attach.
+</t>
+      <t>
+       <vspace/>
+       The auth message contains afid, a new fid to be established for authen-
+       tication,  and  the uname and aname that will be those of the following
+       attach message.	If the server  does  not  require  authentication,  it
+       returns Rerror to the Tauth message.
+</t>
+      <t>
+       <vspace/>
+       If  the	server does require authentication, it returns aqid defining a
+       file of type QTAUTH (see intro(5)) that may be read and written	(using
+       read  and write messages in the usual way) to execute an authentication
+       protocol.  That protocol's definition is not part of 9P itself.
+</t>
+      <t>
+       <vspace/>
+       Once the protocol is complete, the same afid is presented in the attach
+       message	for  the user, granting entry.	The same validated afid may be
+       used for multiple attach messages with the same uname and aname.
+</t>
+     </list>
+    </t>
+    <t>
+ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+       An attach  transaction  will  be	 generated  for	 kernel	 devices  (see
+       intro(3))  when	a  system  call	 evaluates  a file name beginning with
+       Pipe(2) generates an attach on the kernel device	 pipe(3).   The	 mount
+       system  call  (see  bind(2))  generates an attach message to the remote
+       file server.  When the kernel boots, an attach  is  made	 to  the  root
+       device,	root(3),  and  then  an	 attach	 is made to the requested file
+       server machine.
+</t>
+      <t>
+       <vspace/>
+       An auth transaction is generated by the fauth(2) system call or by  the
+       first mount system call on an uninitialized connection.
+</t>
+     </list>
+    </t>
+    <t>
+SEE ALSO
+</t>
+    <t>
+     <list>
+      <t>
+       auth(2), fauth(2), version(5), authsrv(6)
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="clunk - forget about a fid">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+       size[4] Tclunk tag[2] fid[4]
+</t>
+      <t>
+	size[4] Rclunk tag[2]
+</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+       The  clunk request informs the file server that the current file repre-
+       sented by fid is no longer needed by the client.	 The  actual  file  is
+       not  removed on the server unless the fid had been opened with ORCLOSE.
+</t>
+      <t>
+       <vspace/>
+       Once a fid has been clunked, the same fid can be reused in a  new  walk
+       or attach request.
+</t>
+      <t>
+       <vspace/>
+       Even if the clunk returns an error, the fid is no longer valid.
+</t>
+     </list>
+    </t>
+    <t>
+ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+       A  clunk	 message is generated by close and indirectly by other actions
+       such as failed open calls.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="error - return an error">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+       size[4] Rerror tag[2] ename[s]
+</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+       The  Rerror  message  (there  is	 no Terror) is used to return an error
+       string describing the failure of a transaction.	It replaces the corre-
+       sponding	 reply message that would accompany a successful call; its tag
+       is that of the failing request.
+</t>
+      <t>
+       <vspace/>
+       By convention, clients  may  truncate  error  messages  after  ERRMAX-1
+       bytes; ERRMAX is defined in libc.h.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="flush - abort a message">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tflush tag[2] oldtag[2]
+</t>
+      <t>
+          size[4] Rflush tag[2]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          When the response to a request is no longer needed, such as
+          when a user interrupts a process doing a read(2), a Tflush
+          request is sent to the server to purge the pending response.
+          The message being flushed is identified by oldtag. The
+          semantics of flush depends on messages arriving in order.
+</t>
+      <t>
+       <vspace/>
+          The server should answer the flush message immediately.  If
+          it recognizes oldtag as the tag of a pending transaction, it
+          should abort any pending response and discard that tag.  In
+          either case, it should respond with an Rflush echoing the
+          tag (not oldtag) of the Tflush message.  A Tflush can never
+          be responded to by an Rerror message.
+</t>
+      <t>
+       <vspace/>
+          The server may respond to the pending request before
+          responding to the Tflush.  It is possible for a client to
+          send multiple Tflush messages for a particular pending
+          request.  Each subsequent Tflush must contain as oldtag the
+          tag of the pending request (not a previous Tflush).  Should
+          multiple Tflushes be received for a pending request, they
+          must be answered in order.  A Rflush for any of the multiple
+          Tflushes implies an answer for all previous ones.  There-
+          fore, should a server receive a request and then multiple
+          flushes for that request, it need respond only to the last
+          flush.
+</t>
+      <t>
+       <vspace/>
+          When the client sends a Tflush, it must wait to receive the
+          corresponding Rflush before reusing oldtag for subsequent
+          messages.  If a response to the flushed request is received
+          before the Rflush, the client must honor the response as if
+          it had not been flushed, since the completed request may
+          signify a state change in the server.  For instance, Tcreate
+          may have created a file and Twalk may have allocated a fid.
+          If no response is received before the Rflush, the flushed
+          transaction is considered to have been canceled, and should
+          be treated as though it had never been sent.
+</t>
+      <t>
+       <vspace/>
+          Several exceptional conditions are handled correctly by the
+          above specification: sending multiple flushes for a single
+          tag, flushing after a transaction is completed, flushing a
+          Tflush, and flushing an invalid tag.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="open, create - prepare a fid for I/O on an existing or new file">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Topen tag[2] fid[4] mode[1]
+ </t>
+      <t>
+         size[4] Ropen tag[2] qid[13] iounit[4]
+</t>
+      <t>
+       <vspace/>
+          size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1]
+   </t>
+      <t>
+        size[4] Rcreate tag[2] qid[13] iounit[4]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          The open request asks the file server to check permissions
+          and prepare a fid for I/O with subsequent read and write
+          messages.  The mode field determines the type of I/O: 0
+          (called OREAD in libc.h), 1 (OWRITE), 2 (ORDWR), and 3
+          (OEXEC) mean read access, write access, read and write
+          access, and execute access, to be checked against the per-
+          missions for the file.  In addition, if mode has the OTRUNC
+          (0x10) bit set, the file is to be truncated, which requires
+          write permission (if the file is append-only, and permission
+          is granted, the open succeeds but the file will not be trun-
+          cated); if the mode has the ORCLOSE (0x40) bit set, the file
+          is to be removed when the fid is clunked, which requires
+          permission to remove the file from its directory.  All other
+          bits in mode should be zero.  It is illegal to write a
+          directory, truncate it, or attempt to remove it on close.
+          If the file is marked for exclusive use (see stat(5)), only
+          one client can have the file open at any time.  That is,
+          after such a file has been opened, further opens will fail
+          until fid has been clunked.  All these permissions are
+          checked at the time of the open request; subsequent changes
+          to the permissions of files do not affect the ability to
+          read, write, or remove an open file.
+</t>
+      <t>
+       <vspace/>
+          The create request asks the file server to create a new file
+          with the name supplied, in the directory (dir) represented
+          by fid, and requires write permission in the directory.  The
+          owner of the file is the implied user id of the request, the
+          group of the file is the same as dir, and the permissions
+          are the value of
+</t>
+      <t>
+       <list>
+        <t>
+                    perm & (~0666 | (dir.perm & 0666))
+</t>
+       </list>
+      </t>
+      <t>
+       <vspace/>
+          if a regular file is being created and
+</t>
+      <t>
+       <list>
+        <t>
+                    perm & (~0777 | (dir.perm & 0777))
+</t>
+       </list>
+      </t>
+      <t>
+       <vspace/>
+          if a directory is being created.  This means, for example,
+          that if the create allows read permission to others, but the
+          containing directory does not, then the created file will
+          not allow others to read the file.
+</t>
+      <t>
+       <vspace/>
+          Finally, the newly created file is opened according to mode,
+          and fid will represent the newly opened file.  Mode is not
+          checked against the permissions in perm. The qid for the new
+          file is returned with the create reply message.
+</t>
+      <t>
+       <vspace/>
+          Directories are created by setting the DMDIR bit
+          (0x80000000) in the perm.
+</t>
+      <t>
+       <vspace/>
+          The names . and .. are special; it is illegal to create
+          files with these names.
+</t>
+      <t>
+       <vspace/>
+          It is an error for either of these messages if the fid is
+          already the product of a successful open or create message.
+</t>
+      <t>
+       <vspace/>
+          An attempt to create a file in a directory where the given
+          name already exists will be rejected; in this case, the
+          create system call (see open(2)) uses open with truncation.
+          The algorithm used by the create system call is: first walk
+          to the directory to contain the file.  If that fails, return
+          an error.  Next walk to the specified file.  If the walk
+          succeeds, send a request to open and truncate the file and
+          return the result, successful or not.  If the walk fails,
+          send a create message.  If that fails, it may be because the
+          file was created by another process after the previous walk
+          failed, so (once) try the walk and open again.
+</t>
+      <t>
+       <vspace/>
+          For the behavior of create on a union directory, see
+          bind(2).
+</t>
+      <t>
+       <vspace/>
+          The iounit field returned by open and create may be zero.
+          If it is not, it is the maximum number of bytes that are
+          guaranteed to be read from or written to the file without
+          breaking the I/O transfer into multiple 9P messages; see
+          read(5).
+</t>
+     </list>
+    </t>
+    <t>
+     ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+          Open and create both generate open messages; only create
+          generates a create message.  The iounit associated with an
+          open file may be discovered by calling iounit(2).
+</t>
+      <t>
+       <vspace/>
+          For programs that need atomic file creation, without the
+          race that exists in the open-create sequence described
+          above, the kernel does the following.  If the OEXCL (0x1000)
+          bit is set in the mode for a create system call, the open
+          message is not sent; the kernel issues only the create.
+          Thus, if the file exists, create will draw an error, but if
+          it doesn't and the create system call succeeds, the process
+          issuing the create is guaranteed to be the one that created
+          the file.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="read, write - transfer data from and to a file">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tread tag[2] fid[4] offset[8] count[4]
+</t>
+      <t>
+          size[4] Rread tag[2] count[4] data[count]
+</t>
+      <t>
+       <vspace/>
+          size[4] Twrite tag[2] fid[4] offset[8] count[4] data[count]
+ </t>
+      <t>  
+       size[4] Rwrite tag[2] count[4]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          The read request asks for count bytes of data from the file
+          identified by fid, which must be opened for reading, start-
+          ing offset bytes after the beginning of the file.  The bytes
+          are returned with the read reply message.
+</t>
+      <t>
+       <vspace/>
+          The count field in the reply indicates the number of bytes
+          returned.  This may be less than the requested amount.  If
+          the offset field is greater than or equal to the number of
+          bytes in the file, a count of zero will be returned.
+</t>
+      <t>
+       <vspace/>
+          For directories, read returns an integral number of direc-
+          tory entries exactly as in stat (see stat(5)), one for each
+          member of the directory.  The read request message must have
+          offset equal to zero or the value of offset in the previous
+          read on the directory, plus the number of bytes returned in
+          the previous read.  In other words, seeking other than to
+          the beginning is illegal in a directory (see seek(2)).
+</t>
+      <t>
+       <vspace/>
+          The write request asks that count bytes of data be recorded
+          in the file identified by fid, which must be opened for
+          writing, starting offset bytes after the beginning of the
+          file.  If the file is append-only, the data will be placed
+          at the end of the file regardless of offset. Directories may
+          not be written.
+</t>
+      <t>
+       <vspace/>
+          The write reply records the number of bytes actually writ-
+          ten.  It is usually an error if this is not the same as
+          requested.
+</t>
+      <t>
+       <vspace/>
+          Because 9P implementations may limit the size of individual
+          messages, more than one message may be produced by a single
+          read or write call.  The iounit field returned by open(5),
+          if non-zero, reports the maximum size that is guaranteed to
+          be transferred atomically.
+</t>
+     </list>
+    </t>
+    <t>
+     ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+          Read and write messages are generated by the corresponding
+          calls.  Because they include an offset, the pread and pwrite
+          calls correspond more directly to the 9P messages.  Although
+          seek(2) affects the offset, it does not generate a message.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="remove - remove a file from a server">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tremove tag[2] fid[4]
+</t>
+      <t>
+          size[4] Rremove tag[2]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          The remove request asks the file server both to remove the
+          file represented by fid and to clunk the fid, even if the
+          remove fails.  This request will fail if the client does not
+          have write permission in the parent directory.
+</t>
+      <t>
+       <vspace/>
+          It is correct to consider remove to be a clunk with the side
+          effect of removing the file if permissions allow.
+</t>
+      <t>
+       <vspace/>
+          If a file has been opened as multiple fids, possibly on dif-
+          ferent connections, and one fid is used to remove the file,
+          whether the other fids continue to provide access to the
+          file is implementation-defined.  The Plan 9 file servers
+          (like fs(4)) remove the file immediately: attempts to use
+          the other fids will yield a ``phase error.''  U9fs(4) fol-
+          lows the semantics of the underlying Unix file system, so
+          other fids typically remain usable.
+</t>
+     </list>
+    </t>
+    <t>
+     ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+          Remove messages are generated by remove.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="stat, wstat - inquire or change file attributes">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tstat tag[2] fid[4]
+</t>
+      <t>
+          size[4] Rstat tag[2] stat[n]
+</t>
+      <t>
+          size[4] Twstat tag[2] fid[4] stat[n]
+</t>
+      <t>
+          size[4] Rwstat tag[2]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          The stat transaction inquires about the file identified by
+          fid. The reply will contain a machine-independent directory
+          entry, stat, laid out as follows:
+</t>
+      <t>
+       <list>
+        <t>
+         <list style="hanging">
+          <t hangText="size[2]">
+           <vspace/>
+               total byte count of the following data
+</t>
+          <t hangText="type[2]">
+           <vspace/>
+               for kernel use
+</t>
+          <t hangText="dev[4]">
+           <vspace/>
+               for kernel use
+</t>
+          <t hangText="qid.type[1]">
+           <vspace/>
+               the type of the file (directory, etc.), represented as
+               a bit vector corresponding to the high 8 bits of the
+               file's mode word.
+</t>
+          <t hangText="qid.vers[4]">
+           <vspace/>
+               version number for given path
+</t>
+          <t hangText="qid.path[8]">
+           <vspace/>
+               the file server's unique identification for the file
+</t>
+          <t hangText="mode[4]">
+           <vspace/>
+               permissions and flags
+</t>
+          <t hangText="atime[4]">
+           <vspace/>
+               last access time
+</t>
+          <t hangText="mtime[4]">
+           <vspace/>
+               last modification time
+</t>
+          <t hangText="length[8]">
+           <vspace/>
+               length of file in bytes
+</t>
+          <t hangText="name[ s ]">
+           <vspace/>
+               file name; must be / if the file is the root directory
+               of the server
+</t>
+          <t hangText="uid[ s ]">
+           <vspace/>
+               owner name
+</t>
+          <t hangText="gid[ s ]">
+           <vspace/>
+               group name
+</t>
+          <t hangText="muid[ s ]">
+           <vspace/>
+               name of the user who last modified the file
+</t>
+         </list>
+        </t>
+       </list>
+      </t>
+      <t>
+       <vspace/>
+          Integers in this encoding are in little-endian order (least
+          significant byte first).  The convM2D and convD2M routines
+          (see fcall(2)) convert between directory entries and a C
+          structure called a Dir.
+</t>
+      <t>
+       <vspace/>
+          The mode contains permission bits as described in intro(5)
+          and the following: 0x80000000 (DMDIR, this file is a direc-
+          tory), 0x40000000 (DMAPPEND, append only), 0x20000000
+          (DMEXCL, exclusive use), 0x04000000 (DMTMP, temporary);
+          these are echoed in Qid.type.  Writes to append-only files
+          always place their data at the end of the file; the offset
+          in the write message is ignored, as is the OTRUNC bit in an
+          open.  Exclusive use files may be open for I/O by only one
+          fid at a time across all clients of the server.  If a second
+          open is attempted, it draws an error.  Servers may implement
+          a timeout on the lock on an exclusive use file: if the fid
+          holding the file open has been unused for an extended period
+          (of order at least minutes), it is reasonable to break the
+          lock and deny the initial fid further I/O.  Temporary files
+          are not included in nightly archives (see fossil(4)).
+</t>
+      <t>
+       <vspace/>
+          The two time fields are measured in seconds since the epoch
+          (Jan 1 00:00 1970 GMT).  The mtime field reflects the time
+          of the last change of content (except when later changed by
+          wstat).  For a plain file, mtime is the time of the most
+          recent create, open with truncation, or write; for a direc-
+          tory it is the time of the most recent remove, create, or
+          wstat of a file in the directory.  Similarly, the atime
+          field records the last read of the contents; also it is set
+          whenever mtime is set.  In addition, for a directory, it is
+          set by an attach, walk, or create, all whether successful or
+          not.
+</t>
+      <t>
+       <vspace/>
+          The muid field names the user whose actions most recently
+          changed the mtime of the file.
+</t>
+      <t>
+       <vspace/>
+          The length records the number of bytes in the file.  Direc-
+          tories and most files representing devices have a conven-
+          tional length of 0.
+</t>
+      <t>
+       <vspace/>
+          The stat request requires no special permissions.
+</t>
+      <t>
+       <vspace/>
+          The wstat request can change some of the file status
+          information.  The name can be changed by anyone with write
+          permission in the parent directory; it is an error to change
+          the name to that of an existing file.  The length can be
+          changed (affecting the actual length of the file) by anyone
+          with write permission on the file.  It is an error to
+          attempt to set the length of a directory to a non-zero
+          value, and servers may decide to reject length changes for
+          other reasons.  The mode and mtime can be changed by the
+          owner of the file or the group leader of the file's current
+          group.  The directory bit cannot be changed by a wstat; the
+          other defined permission and mode bits can.  The gid can be
+          changed: by the owner if also a member of the new group; or
+          by the group leader of the file's current group if also
+          leader of the new group (see intro(5) for more information
+          about permissions and users(6) for users and groups).  None
+          of the other data can be altered by a wstat and attempts to
+          change them will trigger an error.  In particular, it is
+          illegal to attempt to change the owner of a file.  (These
+          conditions may be relaxed when establishing the initial
+          state of a file server; see fsconfig(8).)
+</t>
+      <t>
+       <vspace/>
+          Either all the changes in wstat request happen, or none of
+          them does: if the request succeeds, all changes were made;
+          if it fails, none were.
+</t>
+      <t>
+       <vspace/>
+          A wstat request can avoid modifying some properties of the
+          file by providing explicit ``don't touch'' values in the
+          stat data that is sent: zero-length strings for text values
+          and the maximum unsigned value of appropriate size for inte-
+          gral values.  As a special case, if all the elements of the
+          directory entry in a Twstat message are ``don't touch'' val-
+          ues, the server may interpret it as a request to guarantee
+          that the contents of the associated file are committed to
+          stable storage before the Rwstat message is returned.  (Con-
+          sider the message to mean, ``make the state of the file
+          exactly what it claims to be.'')
+</t>
+      <t>
+       <vspace/>
+          A read of a directory yields an integral number of directory
+          entries in the machine independent encoding given above (see
+          read(5)).
+</t>
+      <t>
+       <vspace/>
+          Note that since the stat information is sent as a 9P
+          variable-length datum, it is limited to a maximum of 65535
+          bytes.
+</t>
+     </list>
+    </t>
+    <t>
+     ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+          Stat messages are generated by fstat and stat.
+</t>
+      <t>
+       <vspace/>
+          Wstat messages are generated by fwstat and wstat.
+</t>
+     </list>
+    </t>
+    <t>
+     BUGS
+</t>
+    <t>
+     <list>
+      <t>
+          To make the contents of a directory, such as returned by
+          read(5), easy to parse, each directory entry begins with a
+          size field.  For consistency, the entries in Twstat and
+          Rstat messages also contain their size, which means the size
+          appears twice.  For example, the Rstat message is formatted
+          as ``(4+1+2+2+n)[4] Rstat tag[2] n[2] (n-2)[2] type[2]
+          dev[4]...,'' where n is the value returned by convD2M.
+</t>
+     </list>
+    </t>
+   </section>
+   <section title="walk - descend a directory hierarchy">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Twalk tag[2] fid[4] newfid[4] nwname[2] nwname*(wname[s])
+</t>
+      <t>
+          size[4] Rwalk tag[2] nwqid[2] nwqid*(qid[13])
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+          The walk request carries as arguments an existing fid and a
+          proposed newfid (which must not be in use unless it is the
+          same as fid) that the client wishes to associate with the
+          result of traversing the directory hierarchy by `walking'
+          the hierarchy using the successive path name elements wname.
+          The fid must represent a directory unless zero path name
+          elements are specified.
+</t>
+      <t>
+       <vspace/>
+          The fid must be valid in the current session and must not
+          have been opened for I/O by an open or create message.  If
+          the full sequence of nwname elements is walked successfully,
+          newfid will represent the file that results.  If not, newfid
+          (and fid) will be unaffected.  However, if newfid is in use
+          or otherwise illegal, an Rerror is returned.
+</t>
+      <t>
+       <vspace/>
+          The name ``..''  (dot-dot) represents the parent directory.
+          The name ``.''  (dot), meaning the current directory, is not
+          used in the protocol.
+</t>
+      <t>
+       <vspace/>
+          It is legal for nwname to be zero, in which case newfid will
+          represent the same file as fid and the walk will usually
+          succeed; this is equivalent to walking to dot.  The rest of
+          this discussion assumes nwname is greater than zero.
+</t>
+      <t>
+       <vspace/>
+          The nwname path name elements wname are walked in order,
+          ``elementwise''.  For the first elementwise walk to succeed,
+          the file identified by fid must be a directory, and the
+          implied user of the request must have permission to search
+          the directory (see intro(5)). Subsequent elementwise walks
+          have equivalent restrictions applied to the implicit fid
+          that results from the preceding elementwise walk.
+</t>
+      <t>
+       <vspace/>
+          If the first element cannot be walked for any reason, Rerror
+          is returned.  Otherwise, the walk will return an Rwalk mes-
+          sage containing nwqid qids corresponding, in order, to the
+          files that are visited by the nwqid successful elementwise
+          walks; nwqid is therefore either nwname or the index of the
+          first elementwise walk that failed.  The value of nwqid can-
+          not be zero unless nwname is zero.  Also, nwqid will always
+          be less than or equal to nwname.  Only if it is equal, how-
+          ever, will newfid be affected, in which case newfid will
+          represent the file reached by the final elementwise walk
+          requested in the message.
+</t>
+      <t>
+       <vspace/>
+          A walk of the name ``..''  in the root directory of a server
+          is equivalent to a walk with no name elements.
+</t>
+      <t>
+       <vspace/>
+          If newfid is the same as fid, the above discussion applies,
+          with the obvious difference that if the walk changes the
+          state of newfid, it also changes the state of fid; and if
+          newfid is unaffected, then fid is also unaffected.
+</t>
+      <t>
+       <vspace/>
+          To simplify the implementation of the servers, a maximum of
+          sixteen name elements or qids may be packed in a single mes-
+          sage.  This constant is called MAXWELEM in fcall(2). Despite
+          this restriction, the system imposes no limit on the number
+          of elements in a file name, only the number that may be
+          transmitted in a single message.
+</t>
+     </list>
+    </t>
+    <t>
+     ENTRY POINTS
+</t>
+    <t>
+     <list>
+      <t>
+          A call to chdir(2) causes a walk.  One or more walk messages
+          may be generated by any of the following calls, which evalu-
+          ate file names: bind, create, exec, mount, open, remove,
+          stat, unmount, wstat. The file name element . (dot) is
+          interpreted locally and is not transmitted in walk messages.
+</t>
+     </list>
+    </t>
+   </section>
+  </section>
+  <section title="Security Considerations">
+   <t>Plenty.  For now see the Security in Plan 9
+		<xref target="P9SEC"/> paper.  This information will
+		be incorperated into this document or a related
+		RFC by-and-by.</t>
+  </section>
+  <section title="IANA Considerationos">
+   <t>TODO: figure out if we have to do anything here</t>
+   <t> we need to specify the numeric form of protocol operations somewhere</t>
+  </section>
+  <section title="Protocol Definitions">
+   <t>TODO: inspired by NFSv4 - embed protocol include files</t>
+  </section>
+ </middle>
+ <back>
+  <references title='Normative References'>
+		&rfc2119;
+		<reference anchor="PLAN9" target="http://plan9.bell-labs.com/plan9">
+    <front>
+     <title>Plan 9 Home Page</title>
+     <author initials="" surname="Lucent Technologies" fullname="Lucent Technolgoies">
+      <organization/>
+     </author>
+    </front>
+   </reference>
+   <reference anchor="P9SEC" target="http://plan9.bell-labs.com/sys/doc/auth.html">
+    <front>
+     <title>Security in Plan 9</title>
+     <author initials="R.C." surname="Cox" fullname="Russ Cox">
+      <organization>
+				MIT LCS
+			 </organization>
+     </author>
+     <author initials="E.G." surname="Grosse" fullname="Eric Grosse">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <author initials="R.P." surname="Pike" fullname="Rob Pike">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <author initials="D.P." surname="Presotto" fullname="Dave Presotto">
+      <organization>
+				Avaya Labs and Bell Labs
+			 </organization>
+     </author>
+     <author initials="S.Q." surname="Quinlan" fullname="Sean Quinlan">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <date year="2002" />
+    </front>
+    <seriesInfo name="Proceedings" value="of the Usenix Security Symposium" />
+   </reference>
+  </references>
+  <section title="Acknowledgements">
+   <t>
+This protocol was the result of work done by the Computing Science
+Research Center of AT&T Bell Labs (now a part of Lucent Technologies) and in
+particular:
+<list>
+     <t>
+Rob Pike</t>
+     <t>
+Dave Presotto</t>
+     <t>
+Ken Thompson</t>
+    </list>
+   </t>
+  </section>
+  <section title="Copyright">
+   <t>
+  This specification is derrived from the Plan 9 Documentation and Manual Pages.
+  The source material is
+  Copyright (C) 2003, Lucent Technologies Inc.  and others.  All Rights Reserved.
+  </t>
+   <t>
+  Extensions to the original source material are Copyright (C) 2005, the authors
+  of this document (as specified in Authors List in the References section).
+  </t>
+  </section>
+ </back>
+</rfc>
