@@ -1,0 +1,1080 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en"><head><title>Plan 9 Remote Resource Protocol Unix Extension</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="Plan 9 Remote Resource Protocol Unix Extension">
+<meta name="keywords" content="Plan 9, 9P2000, 9P2000.u, v9fs, 9P">
+<meta name="generator" content="xml2rfc v1.33 (http://xml.resource.org/)">
+<style type='text/css'><!--
+        body {
+                font-family: verdana, charcoal, helvetica, arial, sans-serif;
+                font-size: small; color: #000; background-color: #FFF;
+                margin: 2em;
+        }
+        h1, h2, h3, h4, h5, h6 {
+                font-family: helvetica, monaco, "MS Sans Serif", arial, sans-serif;
+                font-weight: bold; font-style: normal;
+        }
+        h1 { color: #900; background-color: transparent; text-align: right; }
+        h3 { color: #333; background-color: transparent; }
+
+        td.RFCbug {
+                font-size: x-small; text-decoration: none;
+                width: 30px; height: 30px; padding-top: 2px;
+                text-align: justify; vertical-align: middle;
+                background-color: #000;
+        }
+        td.RFCbug span.RFC {
+                font-family: monaco, charcoal, geneva, "MS Sans Serif", helvetica, verdana, sans-serif;
+                font-weight: bold; color: #666;
+        }
+        td.RFCbug span.hotText {
+                font-family: charcoal, monaco, geneva, "MS Sans Serif", helvetica, verdana, sans-serif;
+                font-weight: normal; text-align: center; color: #FFF;
+        }
+
+        table.TOCbug { width: 30px; height: 15px; }
+        td.TOCbug {
+                text-align: center; width: 30px; height: 15px;
+                color: #FFF; background-color: #900;
+        }
+        td.TOCbug a {
+                font-family: monaco, charcoal, geneva, "MS Sans Serif", helvetica, sans-serif;
+                font-weight: bold; font-size: x-small; text-decoration: none;
+                color: #FFF; background-color: transparent;
+        }
+
+        td.header {
+                font-family: arial, helvetica, sans-serif; font-size: x-small;
+                vertical-align: top; width: 33%;
+                color: #FFF; background-color: #666;
+        }
+        td.author { font-weight: bold; font-size: x-small; margin-left: 4em; }
+        td.author-text { font-size: x-small; }
+
+        /* info code from SantaKlauss at http://www.madaboutstyle.com/tooltip2.html */
+        a.info {
+                /* This is the key. */
+                position: relative;
+                z-index: 24;
+                text-decoration: none;
+        }
+        a.info:hover {
+                z-index: 25;
+                color: #FFF; background-color: #900;
+        }
+        a.info span { display: none; }
+        a.info:hover span.info {
+                /* The span will display just on :hover state. */
+                display: block;
+                position: absolute;
+                font-size: smaller;
+                top: 2em; left: -5em; width: 15em;
+                padding: 2px; border: 1px solid #333;
+                color: #900; background-color: #EEE;
+                text-align: left;
+        }
+
+        a { font-weight: bold; }
+        a:link    { color: #900; background-color: transparent; }
+        a:visited { color: #633; background-color: transparent; }
+        a:active  { color: #633; background-color: transparent; }
+
+        p { margin-left: 2em; margin-right: 2em; }
+        p.copyright { font-size: x-small; }
+        p.toc { font-size: small; font-weight: bold; margin-left: 3em; }
+        table.toc { margin: 0 0 0 3em; padding: 0; border: 0; vertical-align: text-top; }
+        td.toc { font-size: small; font-weight: bold; vertical-align: text-top; }
+
+        ol.text { margin-left: 2em; margin-right: 2em; }
+        ul.text { margin-left: 2em; margin-right: 2em; }
+        li      { margin-left: 3em; }
+
+        /* RFC-2629 <spanx>s and <artwork>s. */
+        em     { font-style: italic; }
+        strong { font-weight: bold; }
+        dfn    { font-weight: bold; font-style: normal; }
+        cite   { font-weight: normal; font-style: normal; }
+        tt     { color: #036; }
+        tt, pre, pre dfn, pre em, pre cite, pre span {
+                font-family: "Courier New", Courier, monospace; font-size: small;
+        }
+        pre {
+                text-align: left; padding: 4px;
+                color: #000; background-color: #CCC;
+        }
+        pre dfn  { color: #900; }
+        pre em   { color: #66F; background-color: #FFC; font-weight: normal; }
+        pre .key { color: #33C; font-weight: bold; }
+        pre .id  { color: #900; }
+        pre .str { color: #000; background-color: #CFF; }
+        pre .val { color: #066; }
+        pre .rep { color: #909; }
+        pre .oth { color: #000; background-color: #FCF; }
+        pre .err { background-color: #FCC; }
+
+        /* RFC-2629 <texttable>s. */
+        table.all, table.full, table.headers, table.none {
+                font-size: small; text-align: center; border-width: 2px;
+                vertical-align: top; border-collapse: collapse;
+        }
+        table.all, table.full { border-style: solid; border-color: black; }
+        table.headers, table.none { border-style: none; }
+        th {
+                font-weight: bold; border-color: black;
+                border-width: 2px 2px 3px 2px;
+        }
+        table.all th, table.full th { border-style: solid; }
+        table.headers th { border-style: none none solid none; }
+        table.none th { border-style: none; }
+        table.all td {
+                border-style: solid; border-color: #333;
+                border-width: 1px 2px;
+        }
+        table.full td, table.headers td, table.none td { border-style: none; }
+
+        hr { height: 1px; }
+        hr.insert {
+                width: 80%; border-style: none; border-width: 0;
+                color: #CCC; background-color: #CCC;
+        }
+--></style>
+</head>
+<body>
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<table summary="layout" width="66%" border="0" cellpadding="0" cellspacing="0"><tr><td><table summary="layout" width="100%" border="0" cellpadding="2" cellspacing="1">
+<tr><td class="header">Network Working Group</td><td class="header">E. Van Hensbergen</td></tr>
+<tr><td class="header">Internet-Draft</td><td class="header">Plan 9 Fans</td></tr>
+<tr><td class="header">Updates:</td><td class="header">August 17, 2009</td></tr>
+<tr><td class="header"> <a href='http://tools.ietf.org/html/rfcexperimental-draft-9P2000-protocol'>experimental-draft-9P2000-protocol</a></td><td class="header">&nbsp;</td></tr>
+<tr><td class="header">(if&nbsp;approved)</td><td class="header">&nbsp;</td></tr>
+<tr><td class="header">Intended status: Experimental</td><td class="header">&nbsp;</td></tr>
+<tr><td class="header">Expires: February 18, 2010</td><td class="header">&nbsp;</td></tr>
+</table></td></tr></table>
+<h1><br />Plan 9 Remote Resource Protocol Unix Extension<br />experimental-draft-9P2000-unix-extension</h1>
+
+<h3>Status of this Memo</h3>
+<p>
+This document is an Internet-Draft and is
+NOT offered in accordance with Section&nbsp;10 of RFC&nbsp;2026,
+and the author does not provide the IETF with any rights other
+than to publish as an Internet-Draft.</p>
+<p>
+Internet-Drafts are working documents of the Internet Engineering
+Task Force (IETF), its areas, and its working groups.
+Note that other groups may also distribute working documents as
+Internet-Drafts.</p>
+<p>
+Internet-Drafts are draft documents valid for a maximum of six months
+and may be updated, replaced, or obsoleted by other documents at any time.
+It is inappropriate to use Internet-Drafts as reference material or to cite
+them other than as &ldquo;work in progress.&rdquo;</p>
+<p>
+The list of current Internet-Drafts can be accessed at
+<a href='http://www.ietf.org/ietf/1id-abstracts.txt'>http://www.ietf.org/ietf/1id-abstracts.txt</a>.</p>
+<p>
+The list of Internet-Draft Shadow Directories can be accessed at
+<a href='http://www.ietf.org/shadow.html'>http://www.ietf.org/shadow.html</a>.</p>
+<p>
+This Internet-Draft will expire on February 18, 2010.</p>
+
+<h3>Abstract</h3>
+
+<p>
+	9P is a distributed resource sharing protocol developed as
+	part of the Plan 9 research operating system at AT&T Bell
+	Laboratories (now a part of Lucent Technologies) by the Computer
+	Science Research Center.  It can be used to distributed file
+	systems, devices, and application services.  It was designed as
+	an interface to both local and remote resources, making the
+	transition from local to cluster to grid resources transparent.
+	
+</p>
+<p>
+   	9P2000.u is a set of extensions to the 9P protocol to better
+	support UNIX environments connecting to Plan 9 file servers and
+	UNIX environments connecting to other UNIX environments.  The
+	extensions include support for symbolic links, additional modes,
+	and special files (such as pipes and devices).  Also included
+	are hints to better support mapping of numeric user-ids, group-ids, 
+	and error codes.
+	
+</p><a name="toc"></a><br /><hr />
+<h3>Table of Contents</h3>
+<p class="toc">
+<a href="#anchor1">1.</a>&nbsp;
+Requirements notation<br />
+<a href="#intro">2.</a>&nbsp;
+Introduction<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor2">2.1.</a>&nbsp;
+Overview of Differences<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor3">2.1.1.</a>&nbsp;
+Numeric Versus String IDs<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor4">2.1.2.</a>&nbsp;
+Error Strings Versus Error Codes<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor5">2.1.3.</a>&nbsp;
+Permission Modes<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor6">2.1.4.</a>&nbsp;
+Special Files and Links<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor7">2.1.5.</a>&nbsp;
+ioctl<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor8">2.1.6.</a>&nbsp;
+Extended Attributes<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#msgs">2.2.</a>&nbsp;
+Changed Messages<br />
+<a href="#anchor9">3.</a>&nbsp;
+Protocol Data Types<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor10">3.1.</a>&nbsp;
+Changed Basic Data Types<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor11">3.2.</a>&nbsp;
+Changed Structured Data Types<br />
+<a href="#anchor12">4.</a>&nbsp;
+Changed File Attributes<br />
+<a href="#anchor13">5.</a>&nbsp;
+Versioning<br />
+<a href="#anchor14">6.</a>&nbsp;
+Error Definitions<br />
+<a href="#protocol">7.</a>&nbsp;
+Changed Protocol Operations<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#version">7.1.</a>&nbsp;
+version - negotiate protocol version<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor15">7.2.</a>&nbsp;
+error - return an error<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor16">7.3.</a>&nbsp;
+auth/attach - messages to establish a connection<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor17">7.4.</a>&nbsp;
+open, create - prepare a fid for I/O on an existing or new file<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor18">7.5.</a>&nbsp;
+stat, wstat - inquire or change file attributes<br />
+<a href="#anchor19">8.</a>&nbsp;
+Security Considerations<br />
+<a href="#anchor20">9.</a>&nbsp;
+Protocol Definition Differences<br />
+<a href="#rfc.references1">10.</a>&nbsp;
+Normative References<br />
+<a href="#anchor22">Appendix&nbsp;A.</a>&nbsp;
+Acknowledgements<br />
+<a href="#anchor23">Appendix&nbsp;B.</a>&nbsp;
+Copyright<br />
+<a href="#rfc.authors">&#167;</a>&nbsp;
+Author's Address<br />
+</p>
+<br clear="all" />
+
+<a name="anchor1"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.1"></a><h3>1.&nbsp;
+Requirements notation</h3>
+
+<p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL",
+	    "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
+	    and "OPTIONAL" in this document are to be interpreted as
+	    described in <a class='info' href='#RFC2119'>[RFC2119]<span> (</span><span class='info'>Bradner, S., &ldquo;Key words for use in RFCs to Indicate Requirement Levels,&rdquo; March&nbsp;1997.</span><span>)</span></a>.
+</p>
+<a name="intro"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2"></a><h3>2.&nbsp;
+Introduction</h3>
+
+<p>
+Many modern UNIX systems, including Linux use a virtual file system (VFS) 
+layer as a basic level of abstraction for accessing underlying 
+implementations. Implementing 9P2000 under Linux is a matter of mapping VFS 
+operations to their associated 9P operations. The problem, however, is that 
+9P2000 was designed for a non-UNIX system so there are several fundamental 
+differences in the functional semantics provided by 9P.
+
+</p>
+<p>
+To preserve compatibility with these pre-existing features we propose 
+a transparent extension to the file system semantics which minimally effects 
+the protocol syntax.  9P2000.u is a dialect of 9P2000 negotiated in the 
+Tversion/Rversion exchange.  If the server agrees to 9P2000.u, then the wire 
+protocol that follows is 9P2000 with these changes.
+
+</p>
+<a name="anchor2"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1"></a><h3>2.1.&nbsp;
+Overview of Differences</h3>
+
+<a name="anchor3"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.1"></a><h3>2.1.1.&nbsp;
+Numeric Versus String IDs</h3>
+
+<p>
+Under Plan 9 <a class='info' href='#PLAN9'>[PLAN9]<span> (</span><span class='info'>Lucent Technologies, &ldquo;Plan 9 Home Page,&rdquo; .</span><span>)</span></a>, user names as well as groups are represented by strings, while 
+on Unix they are represented by unique numbers. This is complicated by Linux 
+making it exceedingly difficult to map these numeric identifiers to their 
+string values in the kernel. Many of the available UNIX network file systems 
+avoid this issue and simply use numeric identifiers over the wire, hoping they 
+map to the remote system. NFSv4 has provisions for sending string group 
+and user info over the wire and then contacting a user-space daemon which 
+attempts to provide a valid mapping.
+
+</p>
+<p>
+9P2000.u provides a dual approach to this problem, changes have been made
+to the protocol to allow for numeric identifiers to be used along-side
+strings.  Servers should make every attempt to provide valid information
+for both the numeric and string form of identifiers.  Clients can then use
+the available information to best map the identifiers to their local
+environment.  Use of extended form string user names (e.g. user@domain)
+as specified in the NFSv4 environment is also valid.
+
+</p>
+<a name="anchor4"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.2"></a><h3>2.1.2.&nbsp;
+Error Strings Versus Error Codes</h3>
+
+<p>
+A similar problem exists for error numbers, by default VFS operations 
+return error numbers, whereas Plan 9 (and 9P) use error strings to 
+describe failure conditions.  This problem is further exacerbated by 
+the potential for Plan 9 synthetic file servers to return custom error
+strings which may not match any pre-defined set (or pattern) of 
+standard error messages.
+
+</p>
+<p>
+Again, our approach is to provide as much information as possible in
+order to help clients properly convey error conditions to end-applications
+and end-users.  As such both error strings and error codes are conveyed in
+the 9P2000.u version of the protocol.  A suggested implementation is that
+non-standard/unrecognized error strings/codes be made available to
+applications via some mechanism in order to communicate application
+synthetic file system events (via sysfs or procfs in Linux, or perhaps
+via a special extended attribute).
+
+</p>
+<a name="anchor5"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.3"></a><h3>2.1.3.&nbsp;
+Permission Modes</h3>
+
+<p>
+Plan 9 has a different user security model <a class='info' href='#P9SEC'>[P9SEC]<span> (</span><span class='info'>Cox, R., Grosse, E., Pike, R., Presotto, D., and S. Quinlan, &ldquo;Security in Plan 9,&rdquo; 2002.</span><span>)</span></a>, so there 
+is no such concept as set-uid or set-gid permissions.  There is also no 
+equivalent for the sticky bit.  Luckily, Plan 9 has plenty of space in 
+higher permission mode bit space for such extensions.
+
+</p>
+<a name="anchor6"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.4"></a><h3>2.1.4.&nbsp;
+Special Files and Links</h3>
+
+<p>
+One of the unique aspects of the Plan 9 name space is that it is dynamic. 
+Users are able to bind files and directories over each other in stackable 
+layers similar to union file systems. This aspect of Plan 9 name spaces has 
+obviated the need for symbolic or hard links. Symlinks on a remote UNIX file 
+server will be traversed transparently as part of a walk - there is no native 
+ability within Plan 9 to create symlinks. This breaks many assumptions for 
+Linux file-systems and many existing applications (for example the kernel 
+build creates a symlink in the include directory as part of the make process).
+
+</p>
+<p>
+Another unique aspect is that named pipes and devices look just like other
+files in Plan 9, there are no special mode bits and no concept of major
+and minor block numbers.
+
+</p>
+<p>
+To solve both of these problems special mode bits are introduced to mark
+special file types and a variable-length string field is added to the
+file attribute structure which is used to store the additional information
+associated with these special files.  In the case of symlinks, for instance,
+the variable length string contains the full path target of the symbolic
+link.
+
+</p>
+<a name="anchor7"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.5"></a><h3>2.1.5.&nbsp;
+ioctl</h3>
+
+<p>
+A VFS function not accounted for in the 9P infrastructure is the ioctl
+command.  No attempt has been made at this time to accomodate its
+functionality.  Plan 9 has traditionally used elements within a synthetic
+file system to provide for similar functionality, with the added benefit of
+getting transparent network distribution of the control path.  For such
+devices/files that still require the use of ioctl, gateway synthetic file
+systems are suggested to provide analogous functionality.
+
+</p>
+<a name="anchor8"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.1.6"></a><h3>2.1.6.&nbsp;
+Extended Attributes</h3>
+
+<p>
+A relatively recent addition to VFS interfaces is the ability to have
+arbitrary key/value pairs added to file meta-data.  9P2000.u doesn't
+have provisions to accomodate this feature, but it may be added in the
+future as more file systems adopt extended attributes.
+
+</p>
+<a name="msgs"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.2.2"></a><h3>2.2.&nbsp;
+Changed Messages</h3>
+
+<p>
+     </p>
+<blockquote class="text">
+<p>
+      size[4] Tversion tag[2] msize[4] version[s]
+   
+</p>
+<p>
+      size[4] Rversion tag[2] msize[4] version[s]
+   
+</p>
+<p>
+       <br />
+
+      size[4] Rerror tag[2] ename[s] errno[4]
+   
+</p>
+<p>
+<br />
+
+size[4] Tauth tag[2] afid[4] uname[s] aname[s]
+
+</p>
+<p>
+size[4] Rauth tag[2] aqid[13]
+
+</p>
+<p>
+<br />
+
+size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s]
+
+</p>
+<p>
+size[4] Rattach tag[2] qid[13]
+
+</p>
+<p>
+<br />
+
+size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
+
+</p>
+<p>
+size[4] Rcreate tag[2] qid[13] iounit[4]
+
+</p>
+<p>
+       <br />
+
+      size[4] Tstat tag[2] fid[4]
+   
+</p>
+<p>
+      size[4] Rstat tag[2] stat[n]
+   
+</p>
+<p>
+       <br />
+
+      size[4] Twstat tag[2] fid[4] stat[n]
+   
+</p>
+<p>
+      size[4] Rwstat tag[2]
+   
+</p>
+</blockquote><p>
+    
+</p>
+<a name="anchor9"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.3"></a><h3>3.&nbsp;
+Protocol Data Types</h3>
+
+<a name="anchor10"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.3.1"></a><h3>3.1.&nbsp;
+Changed Basic Data Types</h3>
+
+<p> TODO: cover changed data types in our protocol synopsis
+</p>
+<a name="anchor11"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.3.2"></a><h3>3.2.&nbsp;
+Changed Structured Data Types</h3>
+
+<p> TODO: cover changed structs (like stat) that the protocol uses
+</p>
+<a name="anchor12"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.4"></a><h3>4.&nbsp;
+Changed File Attributes</h3>
+
+<p>TODO: discuss changes
+</p>
+<a name="anchor13"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.5"></a><h3>5.&nbsp;
+Versioning</h3>
+
+<p>TODO: describe protocol versioning in detail (steal from Protocol section)
+</p>
+<a name="anchor14"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.6"></a><h3>6.&nbsp;
+Error Definitions</h3>
+
+<p>TODO: enumerate new standard file system error strings and describe 
+   possibility of application error strings
+</p>
+<a name="protocol"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7"></a><h3>7.&nbsp;
+Changed Protocol Operations</h3>
+
+<a name="version"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.1"></a><h3>7.1.&nbsp;
+version - negotiate protocol version</h3>
+
+<p>
+SYNOPSIS
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>size[4] Tversion tag[2] msize[4] version[s]
+</p>
+<p>size[4] Rversion tag[2] msize[4] version[s]
+</p>
+</blockquote><p>
+    
+</p>
+<p>
+DESCRIPTION
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+	Support for 9P2000.u is an optional extension which isn't
+	quite covered in the existing version semantics for 9P2000.
+	The original protocol specification describes discarding
+	anything after an initial period in the version string.  We
+	use the information following the period as a method for
+	negotiating optional protocol extensions.
+     
+</p>
+<p><br />
+
+	If a client desires support for the UNIX extensions, it will
+	send the add a .u to the end of the version string (e.g. 9P2000.u).
+	If a server is capable of supporting the extension, it will
+	return 9P2000.u back to the client.  If the server is incapable
+	or unwilling to support the extensions, it will return the
+	version string without the extension specification (e.g. 9P2000).
+     
+</p>
+<p><br />
+
+	Clients should be implemented in such a way to be able to operate
+	without the extensions in some degraded form of operation.  
+	Specifics for how to gracefully degrade operation without 
+	specific extensions are suggested by this document.
+     
+</p>
+</blockquote><p>
+    
+</p>
+<a name="anchor15"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.2"></a><h3>7.2.&nbsp;
+error - return an error</h3>
+
+<p>
+SYNOPSIS
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+       size[4] Rerror tag[2] ename[s] errno[4]
+
+</p>
+</blockquote><p>
+    
+</p>
+<p>
+DESCRIPTION
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+	An errno field has been added to the message in order to provide
+	a hint of the underlying UNIX error number which caused the error
+	on the server.  Due to consistency problems of mapping error
+	numbers betweeen different versions of UNIX, clients should give
+	preference to the error string in attempting to report the error,
+	however, in the event that they are unable to map an error string,
+	they may return the errno to the application.
+      
+</p>
+<p><br />
+
+	A special errno (ERRUNDEF) is returned by servers who do not wish
+	to return raw error numbers.  In the event that clients can not 
+	interpret the error string, they should somehow make the error
+	string available to end-application/end-user via dynamic custom
+	error codes.
+      
+</p>
+</blockquote><p>
+    
+</p>
+<a name="anchor16"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.3"></a><h3>7.3.&nbsp;
+auth/attach - messages to establish a connection</h3>
+
+<p>
+SYNOPSIS
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4]
+</p>
+<p>size[4] Rattach tag[2] qid[13]
+</p>
+<p>size[4] Tauth tag[2] afid[4] uname[s] aname[s] n_uname[4]
+</p>
+<p>size[4] Rauth tag[2] aqid[13]
+</p>
+</blockquote><p>
+    
+</p>
+<p>
+DESCRIPTION
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+	A numeric uname field has been added to the attach and auth messages
+	in order to provide hints to map a string to a numeric id if such
+	a facility is not available.
+	
+	The numeric uname should be given preference over the uname string
+	unless n_uname is unspecified (~0).
+      
+</p>
+</blockquote><p>
+    
+</p>
+<a name="anchor17"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.4"></a><h3>7.4.&nbsp;
+open, create - prepare a fid for I/O on an existing or new file</h3>
+
+<p>
+     SYNOPSIS
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+          size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
+   
+</p>
+<p>
+        size[4] Rcreate tag[2] qid[13] iounit[4]
+
+</p>
+</blockquote><p>
+    
+</p>
+<p>
+     DESCRIPTION
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+      The most signifigant change to the create operation is the new
+      permission modes which allow for creation of special files.
+      In addition to creating directories with DMDIR, 9P2000.u allows
+      the creation of symlinks (DMSYMLINK), devices (DMDEVICE), 
+      named pipes (DMNAMEPIPE), and sockets (DMSOCKET). extension[s] 
+      is a string describing special files, depending on the mode bit. 
+      For DSYMLINK files, the string is the target of the link. For 
+      DMDEVICE files, the string is "b 1 2" for a block device with 
+      major 1, minor 2. For normal files, this string is empty.
+     
+</p>
+</blockquote><p>
+    
+</p>
+<a name="anchor18"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.7.5"></a><h3>7.5.&nbsp;
+stat, wstat - inquire or change file attributes</h3>
+
+<p>
+     SYNOPSIS
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+          size[4] Tstat tag[2] fid[4]
+
+</p>
+<p>
+          size[4] Rstat tag[2] stat[n]
+
+</p>
+<p>
+          size[4] Twstat tag[2] fid[4] stat[n]
+
+</p>
+<p>
+          size[4] Rwstat tag[2]
+
+</p>
+</blockquote><p>
+    
+</p>
+<p>
+     DESCRIPTION
+
+</p>
+<p>
+     </p>
+<blockquote class="text">
+<p>
+	There are four new fields in the stat structure supporting
+	9P2000 extensions - as well as new qid.type
+	bits and mode bits.
+
+</p>
+<p>
+       </p>
+<blockquote class="text">
+<p>
+         </p>
+<blockquote class="text"><dl>
+<dt>size[2]</dt>
+<dd>
+           
+               total byte count of the following data
+
+</dd>
+<dt>type[2]</dt>
+<dd>
+           
+               for kernel use
+
+</dd>
+<dt>dev[4]</dt>
+<dd>
+           
+               for kernel use
+
+</dd>
+<dt>qid.type[1]</dt>
+<dd>
+           
+               the type of the file (directory, etc.), represented as
+               a bit vector corresponding to the high 8 bits of the
+               file's mode word.
+
+</dd>
+<dt>qid.vers[4]</dt>
+<dd>
+           
+               version number for given path
+
+</dd>
+<dt>qid.path[8]</dt>
+<dd>
+           
+               the file server's unique identification for the file
+
+</dd>
+<dt>mode[4]</dt>
+<dd>
+           
+               permissions and flags
+
+</dd>
+<dt>atime[4]</dt>
+<dd>
+           
+               last access time
+
+</dd>
+<dt>mtime[4]</dt>
+<dd>
+           
+               last modification time
+
+</dd>
+<dt>length[8]</dt>
+<dd>
+           
+               length of file in bytes
+
+</dd>
+<dt>name[ s ]</dt>
+<dd>
+           
+               file name; must be / if the file is the root directory
+               of the server
+
+</dd>
+<dt>uid[ s ]</dt>
+<dd>
+           
+               owner name
+
+</dd>
+<dt>gid[ s ]</dt>
+<dd>
+           
+               group name
+
+</dd>
+<dt>muid[ s ]</dt>
+<dd>
+           
+               name of the user who last modified the file
+
+</dd>
+<dt>extension[ s ]</dt>
+<dd>
+           
+               For use by the UNIX extension to store data about
+	       special files (links, devices, pipes, etc.)
+
+</dd>
+<dt>n_uid[4]</dt>
+<dd>
+           
+               numeric id of the user who owns the file
+
+</dd>
+<dt>n_gid[4]</dt>
+<dd>
+           
+               numeric id of the group associated with the file
+
+</dd>
+<dt>n_muid[4]</dt>
+<dd>
+           
+               numeric id of the user who last modified the file
+
+</dd>
+</dl></blockquote>
+        
+
+</blockquote>
+      
+
+<p><br />
+
+	The n_uid, n_gid, and n_muid are numeric hints that clients
+	may use to map numeric ids when a string to numeric id mapping
+	facility is not available.
+      
+</p>
+<p><br />
+
+	extension[s] is a string describing special files, depending on the
+	mode bit.  For DSYMLINK files, the string is the target of the link.
+	For DMDEVICE files, the string is "b 1 2" for a block device with 
+	major 1, minor 2.   For normal files, this string is empty.
+      
+</p>
+</blockquote><p>
+      
+</p>
+<a name="anchor19"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.8"></a><h3>8.&nbsp;
+Security Considerations</h3>
+
+<p>TODO: Talk about specific security considerations of 9P under
+   UNIX, specifically about the different auth models <a class='info' href='#P9SEC'>[P9SEC]<span> (</span><span class='info'>Cox, R., Grosse, E., Pike, R., Presotto, D., and S. Quinlan, &ldquo;Security in Plan 9,&rdquo; 2002.</span><span>)</span></a>
+</p>
+<a name="anchor20"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.9"></a><h3>9.&nbsp;
+Protocol Definition Differences</h3>
+<div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
+/* permissions */
+enum {
+        DMDIR =            0x80000000,
+        DMAPPEND =         0x40000000,
+        DMEXCL =           0x20000000,
+        DMMOUNT =          0x10000000,
+        DMAUTH =           0x08000000,
+        DMTMP =            0x04000000,
+        DMSYMLINK =        0x02000000,
+        /* 9P2000.u extensions */
+        DMDEVICE =         0x00800000,
+        DMNAMEDPIPE =      0x00200000,
+        DMSOCKET =         0x00100000,
+        DMSETUID =         0x00080000,
+        DMSETGID =         0x00040000,
+};
+
+/* qid.types */
+enum {
+        QTDIR =            0x80,
+        QTAPPEND =         0x40,
+        QTEXCL =           0x20,
+        QTMOUNT =          0x10,
+        QTAUTH =           0x08,
+        QTTMP =	           0x04,
+        QTLINK =           0x02,
+        QTFILE =           0x00,
+};
+struct v9fs_stat {
+        uint16_t size;
+        uint16_t type;
+        uint32_t dev;
+        struct v9fs_qid qid;
+        uint32_t mode;
+        uint32_t atime;
+        uint32_t mtime;
+        uint64_t length;
+        char *name;
+        char *uid;
+        char *gid;
+        char *muid;
+/* 9p2000.u extensions */
+        char *extension;
+        uint32_t n_uid;
+        uint32_t n_gid;
+        uint32_t n_muid;
+
+        char data[0];
+};
+
+struct Rerror {
+        char *error;
+        uint32_t errno;         /* 9p2000.u extension */
+};
+</pre></div>
+<a name="rfc.references1"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>10.&nbsp;Normative References</h3>
+<table width="99%" border="0">
+<tr><td class="author-text" valign="top"><a name="P9SEC">[P9SEC]</a></td>
+<td class="author-text">Cox, R., Grosse, E., Pike, R., Presotto, D., and S. Quinlan, &ldquo;<a href="http://plan9.bell-labs.com/sys/doc/auth.html">Security in Plan 9</a>,&rdquo; Proceedings&nbsp;of the Usenix Security Symposium, 2002.</td></tr>
+<tr><td class="author-text" valign="top"><a name="PLAN9">[PLAN9]</a></td>
+<td class="author-text">Lucent Technologies, &ldquo;<a href="http://plan9.bell-labs.com/plan9">Plan 9 Home Page</a>.&rdquo;</td></tr>
+<tr><td class="author-text" valign="top"><a name="RFC2119">[RFC2119]</a></td>
+<td class="author-text"><a href="mailto:sob@harvard.edu">Bradner, S.</a>, &ldquo;<a href="http://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a>,&rdquo; BCP&nbsp;14, RFC&nbsp;2119, March&nbsp;1997 (<a href="ftp://ftp.isi.edu/in-notes/rfc2119.txt">TXT</a>, <a href="http://xml.resource.org/public/rfc/html/rfc2119.html">HTML</a>, <a href="http://xml.resource.org/public/rfc/xml/rfc2119.xml">XML</a>).</td></tr>
+</table>
+
+<a name="anchor22"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.A"></a><h3>Appendix A.&nbsp;
+Acknowledgements</h3>
+
+<p>
+The 9P2000.u protocol extensions evolved out of contributions from a
+number of people including:
+</p>
+<blockquote class="text">
+<p>Russ Cox
+</p>
+<p>Lachester Ionkov
+</p>
+<p>Ron Minnich
+</p>
+<p>Andrey Mirtchoviski
+</p>
+<p>Rob Pike
+</p>
+<p>Eric Van Hensbergen
+</p>
+<p>Uriel (Contentious Objector)
+</p>
+</blockquote><p>
+
+</p>
+<p>
+The 9P protocol was the result of work done by the Computing Science
+Research Center of AT&T Bell Labs (now a part of Lucent Technologies) and in
+particular:
+</p>
+<blockquote class="text">
+<p>
+Rob Pike
+</p>
+<p>
+Dave Presotto
+</p>
+<p>
+Sape Mullender
+</p>
+<p>
+Ken Thompson
+</p>
+<p>
+Russ Cox
+
+</p>
+</blockquote><p>
+   
+</p>
+<a name="anchor23"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.B"></a><h3>Appendix B.&nbsp;
+Copyright</h3>
+
+<p>
+  This specification is derrived from the Plan 9 Documentation and Manual Pages.
+  The source material is
+  Copyright (C) 2003, Lucent Technologies Inc.  and others.  All Rights Reserved.
+  
+</p>
+<p>
+  Extensions to the original source material are Copyright (C) 2005, the authors
+  of this document (as specified in Authors List in the References section).
+  
+</p>
+<a name="rfc.authors"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>Author's Address</h3>
+<table width="99%" border="0" cellpadding="0" cellspacing="0">
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Eric Van Hensbergen</td></tr>
+<tr><td class="author-text">&nbsp;</td>
+<td class="author-text">Plan 9 Fans</td></tr>
+<tr><td class="author" align="right">Email:&nbsp;</td>
+<td class="author-text"><a href="mailto:9fans@cse.psu.edu">9fans@cse.psu.edu</a></td></tr>
+<tr><td class="author" align="right">URI:&nbsp;</td>
+<td class="author-text"><a href="http://plan9.bell-labs.com/plan9">http://plan9.bell-labs.com/plan9</a></td></tr>
+</table>
+</body></html>
