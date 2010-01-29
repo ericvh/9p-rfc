@@ -1,0 +1,676 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+    <!ENTITY rfc2119 PUBLIC ''
+      'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
+]>
+<rfc category="exp" ipr="none" 
+docName="experimental-draft-9P2010-protocol"
+updates="experimental-draft-9P2000-protocol">
+<?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
+<?rfc toc="yes" ?>
+<?rfc symrefs="yes" ?>
+<?rfc sortrefs="yes"?>
+<?rfc iprnotified="no" ?>
+ <front>
+  <title abbrev="9P2010">Plan 9 Remote Resource Protocol</title>
+  <author initials='E.V.H.' surname="Van Hensbergen" fullname='Eric Van Hensbergen'>
+   <organization>
+		IBM Research
+   </organization>
+   <address>
+    <email>ericvh@gmail.com</email>
+    <uri>http://www.research.ibm.com/people/b/bergevan</uri>
+   </address>
+  </author>
+  <date month="January" year="2010"/>
+  <area>General</area>
+  <keyword>Plan 9</keyword>
+  <keyword>9P2000</keyword>
+  <keyword>9P2010</keyword>
+  <keyword>v9fs</keyword>
+  <keyword>9P</keyword>
+  <abstract>
+   <t>
+	9P is a distributed resource sharing protocol developed as
+	part of the Plan 9 research operating system at AT&T Bell
+	Laboratories (now a part of Lucent Technologies) by the Computer
+	Science Research Center.  It can be used to distributed file
+	systems, devices, and application services.  It was designed as
+	an interface to both local and remote resources, making the
+	transition from local to cluster to grid resources transparent.
+	</t>
+   <t>
+	In my use of 9P within the Linux and IBM communities there have 
+	been several requests for extensions to better support Linux 
+	environments or features not currently a part of the protocol 
+	(locking, caching, batch operations, storage networking, etc.) 
+	As such, I'd like to work towards a specification of the protocol 
+	which can accomodate these extensions in as non-intrusive a way as 
+	possible (the counter-example being 9P2000.u which while negotiated 
+	ends up complicating clients and servers who wish to use it).
+	</t>
+	<t>
+   	9P2010 is an expanded version of the original protocol with 9P2000
+	as its core.  Extended operations representing either support for
+	UNIX environments, or even alternate approaches to the protocol
+	(such as Op from the Octopus project) exist in complimentary
+	operand spaces.
+	</t>
+  </abstract>
+ </front>
+ <middle>
+  <section title="Requirements notation">
+   <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL",
+	    "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
+	    and "OPTIONAL" in this document are to be interpreted as
+	    described in <xref target="RFC2119"/>.</t>
+  </section>
+  <section anchor="intro" title="Introduction">
+<t>
+Many modern UNIX systems, including Linux use a virtual file system (VFS) 
+layer as a basic level of abstraction for accessing underlying 
+implementations. Implementing 9P2010nder Linux is a matter of mapping VFS 
+operations to their associated 9P operations. The problem, however, is that 
+9P2000 was designed for a non-UNIX system so there are several fundamental 
+differences in the functional semantics provided by 9P.
+</t>
+<t>
+To preserve compatibility with these pre-existing features we propose 
+a transparent extension to the file system semantics which minimally effects 
+the protocol syntax.  9P2010 is a dialect of 9P2000 negotiated in the 
+Tversion/Rversion exchange.  If the server agrees to 9P2010, then the wire 
+protocol that follows is 9P2000 with these changes.
+</t>
+<section title="Overview of Differences">
+<section title="Numeric Versus String IDs">
+<t>
+Under Plan 9 <xref target="PLAN9" />, user names as well as groups are represented by strings, while 
+on Unix they are represented by unique numbers. This is complicated by Linux 
+making it exceedingly difficult to map these numeric identifiers to their 
+string values in the kernel. Many of the available UNIX network file systems 
+avoid this issue and simply use numeric identifiers over the wire, hoping they 
+map to the remote system. NFSv4 has provisions for sending string group 
+and user info over the wire and then contacting a user-space daemon which 
+attempts to provide a valid mapping.
+</t>
+<t>
+9P2010 provides a dual approach to this problem, changes have been made
+to the protocol to allow for numeric identifiers to be used along-side
+strings.  Servers should make every attempt to provide valid information
+for both the numeric and string form of identifiers.  Clients can then use
+the available information to best map the identifiers to their local
+environment.  Use of extended form string user names (e.g. user@domain)
+as specified in the NFSv4 environment is also valid.
+</t>
+</section>
+<section title="Error Strings Versus Error Codes">
+<t>
+A similar problem exists for error numbers, by default VFS operations 
+return error numbers, whereas Plan 9 (and 9P) use error strings to 
+describe failure conditions.  This problem is further exacerbated by 
+the potential for Plan 9 synthetic file servers to return custom error
+strings which may not match any pre-defined set (or pattern) of 
+standard error messages.
+</t>
+<t>
+Again, our approach is to provide as much information as possible in
+order to help clients properly convey error conditions to end-applications
+and end-users.  As such both error strings and error codes are conveyed in
+the 9P2010 version of the protocol.  A suggested implementation is that
+non-standard/unrecognized error strings/codes be made available to
+applications via some mechanism in order to communicate application
+synthetic file system events (via sysfs or procfs in Linux, or perhaps
+via a special extended attribute).
+</t>
+</section>
+<section title="Permission Modes">
+<t>
+Plan 9 has a different user security model <xref target="P9SEC"/>, so there 
+is no such concept as set-uid or set-gid permissions.  There is also no 
+equivalent for the sticky bit.  Luckily, Plan 9 has plenty of space in 
+higher permission mode bit space for such extensions.
+</t>
+</section>
+<section title="Special Files and Links">
+<t>
+One of the unique aspects of the Plan 9 name space is that it is dynamic. 
+Users are able to bind files and directories over each other in stackable 
+layers similar to union file systems. This aspect of Plan 9 name spaces has 
+obviated the need for symbolic or hard links. Symlinks on a remote UNIX file 
+server will be traversed transparently as part of a walk - there is no native 
+ability within Plan 9 to create symlinks. This breaks many assumptions for 
+Linux file-systems and many existing applications (for example the kernel 
+build creates a symlink in the include directory as part of the make process).
+</t>
+<t>
+Another unique aspect is that named pipes and devices look just like other
+files in Plan 9, there are no special mode bits and no concept of major
+and minor block numbers.
+</t>
+<t>
+To solve both of these problems special mode bits are introduced to mark
+special file types and a variable-length string field is added to the
+file attribute structure which is used to store the additional information
+associated with these special files.  In the case of symlinks, for instance,
+the variable length string contains the full path target of the symbolic
+link.
+</t>
+</section>
+<section title="ioctl">
+<t>
+A VFS function not accounted for in the 9P infrastructure is the ioctl
+command.  No attempt has been made at this time to accomodate its
+functionality.  Plan 9 has traditionally used elements within a synthetic
+file system to provide for similar functionality, with the added benefit of
+getting transparent network distribution of the control path.  For such
+devices/files that still require the use of ioctl, gateway synthetic file
+systems are suggested to provide analogous functionality.
+</t>
+</section>
+<section title="Extended Attributes">
+<t>
+A relatively recent addition to VFS interfaces is the ability to have
+arbitrary key/value pairs added to file meta-data.  9P2010 doesn't
+have provisions to accomodate this feature, but it may be added in the
+future as more file systems adopt extended attributes.
+</t>
+</section>
+</section>
+   <section anchor="msgs" title="Changed Messages">
+    <t>
+     <list style="empty">
+      <t>
+      size[4] Tversion tag[2] msize[4] version[s]
+   </t>
+      <t>
+      size[4] Rversion tag[2] msize[4] version[s]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Rerror tag[2] ename[s] errno[4]
+   </t>
+<t>
+<vspace/>
+size[4] Tauth tag[2] afid[4] uname[s] aname[s]
+</t>
+<t>
+size[4] Rauth tag[2] aqid[13]
+</t>
+<t>
+<vspace/>
+size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s]
+</t>
+<t>
+size[4] Rattach tag[2] qid[13]
+</t>
+<t>
+<vspace/>
+size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
+</t>
+<t>
+size[4] Rcreate tag[2] qid[13] iounit[4]
+</t>
+      <t>
+       <vspace/>
+      size[4] Tstat tag[2] fid[4]
+   </t>
+      <t>
+      size[4] Rstat tag[2] stat[n]
+   </t>
+      <t>
+       <vspace/>
+      size[4] Twstat tag[2] fid[4] stat[n]
+   </t>
+      <t>
+      size[4] Rwstat tag[2]
+   </t>
+     </list>
+    </t>
+   </section>
+  </section>
+  <section title="Protocol Data Types">
+   <section title="Changed Basic Data Types">
+    <t> TODO: cover changed data types in our protocol synopsis</t>
+   </section>
+   <section title="Changed Structured Data Types">
+    <t> TODO: cover changed structs (like stat) that the protocol uses</t>
+   </section>
+  </section>
+  <section title = "Changed File Attributes">
+   <t>TODO: discuss changes</t>
+  </section>
+  <section title = "Versioning">
+   <t>TODO: describe protocol versioning in detail (steal from Protocol section)</t>
+  </section>
+  <section title = "Error Definitions">
+   <t>TODO: enumerate new standard file system error strings and describe 
+   possibility of application error strings</t>
+  </section>
+  <section anchor="protocol" title="Changed Protocol Operations">
+   <section anchor="version" title="version - negotiate protocol version">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list style="empty">
+      <t>size[4] Tversion tag[2] msize[4] version[s]</t>
+      <t>size[4] Rversion tag[2] msize[4] version[s]</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list style="empty">
+      <t>
+	Support for 9P2010 is an optional extension which isn't
+	quite covered in the existing version semantics for 9P2000.
+	The original protocol specification describes discarding
+	anything after an initial period in the version string.  We
+	use the information following the period as a method for
+	negotiating optional protocol extensions.
+     </t>
+     <t><vspace/>
+	If a client desires support for the UNIX extensions, it will
+	send the add a .u to the end of the version string (e.g. 9P2010).
+	If a server is capable of supporting the extension, it will
+	return 9P2010 back to the client.  If the server is incapable
+	or unwilling to support the extensions, it will return the
+	version string without the extension specification (e.g. 9P2000).
+     </t>
+     <t><vspace/>
+	Clients should be implemented in such a way to be able to operate
+	without the extensions in some degraded form of operation.  
+	Specifics for how to gracefully degrade operation without 
+	specific extensions are suggested by this document.
+     </t>
+     </list>
+    </t>
+   </section>
+
+<section title="error - return an error">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+       size[4] Rerror tag[2] ename[s] errno[4]
+</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+	An errno field has been added to the message in order to provide
+	a hint of the underlying UNIX error number which caused the error
+	on the server.  Due to consistency problems of mapping error
+	numbers betweeen different versions of UNIX, clients should give
+	preference to the error string in attempting to report the error,
+	however, in the event that they are unable to map an error string,
+	they may return the errno to the application.
+      </t>
+      <t><vspace/>
+	A special errno (ERRUNDEF) is returned by servers who do not wish
+	to return raw error numbers.  In the event that clients can not 
+	interpret the error string, they should somehow make the error
+	string available to end-application/end-user via dynamic custom
+	error codes.
+      </t>
+     </list>
+    </t>
+   </section>
+
+<section title="auth/attach - messages to establish a connection">
+    <t>
+SYNOPSIS
+</t>
+    <t>
+     <list>
+       <t>size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4]</t>
+       <t>size[4] Rattach tag[2] qid[13]</t>
+       <t>size[4] Tauth tag[2] afid[4] uname[s] aname[s] n_uname[4]</t>
+       <t>size[4] Rauth tag[2] aqid[13]</t>
+     </list>
+    </t>
+    <t>
+DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+	A numeric uname field has been added to the attach and auth messages
+	in order to provide hints to map a string to a numeric id if such
+	a facility is not available.
+	
+	The numeric uname should be given preference over the uname string
+	unless n_uname is unspecified (~0).
+      </t>
+     </list>
+    </t>
+   </section>
+   
+<section title="open, create - prepare a fid for I/O on an existing or new file">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tcreate tag[2] fid[4] name[s] perm[4] mode[1] extension[s]
+   </t>
+      <t>
+        size[4] Rcreate tag[2] qid[13] iounit[4]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+      The most signifigant change to the create operation is the new
+      permission modes which allow for creation of special files.
+      In addition to creating directories with DMDIR, 9P2010 allows
+      the creation of symlinks (DMSYMLINK), devices (DMDEVICE), 
+      named pipes (DMNAMEPIPE), and sockets (DMSOCKET). extension[s] 
+      is a string describing special files, depending on the mode bit. 
+      For DSYMLINK files, the string is the target of the link. For 
+      DMDEVICE files, the string is "b 1 2" for a block device with 
+      major 1, minor 2. For normal files, this string is empty.
+     </t>
+     </list>
+    </t>
+   </section>
+
+<section title="stat, wstat - inquire or change file attributes">
+    <t>
+     SYNOPSIS
+</t>
+    <t>
+     <list>
+      <t>
+          size[4] Tstat tag[2] fid[4]
+</t>
+      <t>
+          size[4] Rstat tag[2] stat[n]
+</t>
+      <t>
+          size[4] Twstat tag[2] fid[4] stat[n]
+</t>
+      <t>
+          size[4] Rwstat tag[2]
+</t>
+     </list>
+    </t>
+    <t>
+     DESCRIPTION
+</t>
+    <t>
+     <list>
+      <t>
+	There are four new fields in the stat structure supporting
+	9P2000 extensions - as well as new qid.type
+	bits and mode bits.
+</t>
+      <t>
+       <list>
+        <t>
+         <list style="hanging">
+          <t hangText="size[2]">
+           <vspace/>
+               total byte count of the following data
+</t>
+          <t hangText="type[2]">
+           <vspace/>
+               for kernel use
+</t>
+          <t hangText="dev[4]">
+           <vspace/>
+               for kernel use
+</t>
+          <t hangText="qid.type[1]">
+           <vspace/>
+               the type of the file (directory, etc.), represented as
+               a bit vector corresponding to the high 8 bits of the
+               file's mode word.
+</t>
+          <t hangText="qid.vers[4]">
+           <vspace/>
+               version number for given path
+</t>
+          <t hangText="qid.path[8]">
+           <vspace/>
+               the file server's unique identification for the file
+</t>
+          <t hangText="mode[4]">
+           <vspace/>
+               permissions and flags
+</t>
+          <t hangText="atime[4]">
+           <vspace/>
+               last access time
+</t>
+          <t hangText="mtime[4]">
+           <vspace/>
+               last modification time
+</t>
+          <t hangText="length[8]">
+           <vspace/>
+               length of file in bytes
+</t>
+          <t hangText="name[ s ]">
+           <vspace/>
+               file name; must be / if the file is the root directory
+               of the server
+</t>
+          <t hangText="uid[ s ]">
+           <vspace/>
+               owner name
+</t>
+          <t hangText="gid[ s ]">
+           <vspace/>
+               group name
+</t>
+          <t hangText="muid[ s ]">
+           <vspace/>
+               name of the user who last modified the file
+</t>
+          <t hangText="extension[ s ]">
+           <vspace/>
+               For use by the UNIX extension to store data about
+	       special files (links, devices, pipes, etc.)
+</t>
+          <t hangText="n_uid[4]">
+           <vspace/>
+               numeric id of the user who owns the file
+</t>
+          <t hangText="n_gid[4]">
+           <vspace/>
+               numeric id of the group associated with the file
+</t>
+          <t hangText="n_muid[4]">
+           <vspace/>
+               numeric id of the user who last modified the file
+</t>
+
+         </list>
+        </t>
+       </list>
+      </t>
+      <t><vspace/>
+	The n_uid, n_gid, and n_muid are numeric hints that clients
+	may use to map numeric ids when a string to numeric id mapping
+	facility is not available.
+      </t>
+      <t><vspace/>
+	extension[s] is a string describing special files, depending on the
+	mode bit.  For DSYMLINK files, the string is the target of the link.
+	For DMDEVICE files, the string is "b 1 2" for a block device with 
+	major 1, minor 2.   For normal files, this string is empty.
+      </t>
+      </list>
+      </t>
+   </section>
+</section>
+
+  <section title="Security Considerations">
+   <t>TODO: Talk about specific security considerations of 9P under
+   UNIX, specifically about the different auth models <xref target="P9SEC" /></t>
+  </section>
+  <section title="Protocol Definition Differences">
+<figure>
+<artwork>
+/* permissions */
+enum {
+        DMDIR =            0x80000000,
+        DMAPPEND =         0x40000000,
+        DMEXCL =           0x20000000,
+        DMMOUNT =          0x10000000,
+        DMAUTH =           0x08000000,
+        DMTMP =            0x04000000,
+        DMSYMLINK =        0x02000000,
+        /* 9P2010 extensions */
+        DMDEVICE =         0x00800000,
+        DMNAMEDPIPE =      0x00200000,
+        DMSOCKET =         0x00100000,
+        DMSETUID =         0x00080000,
+        DMSETGID =         0x00040000,
+};
+
+/* qid.types */
+enum {
+        QTDIR =            0x80,
+        QTAPPEND =         0x40,
+        QTEXCL =           0x20,
+        QTMOUNT =          0x10,
+        QTAUTH =           0x08,
+        QTTMP =	           0x04,
+        QTLINK =           0x02,
+        QTFILE =           0x00,
+};
+struct v9fs_stat {
+        uint16_t size;
+        uint16_t type;
+        uint32_t dev;
+        struct v9fs_qid qid;
+        uint32_t mode;
+        uint32_t atime;
+        uint32_t mtime;
+        uint64_t length;
+        char *name;
+        char *uid;
+        char *gid;
+        char *muid;
+/* 9p2000.u extensions */
+        char *extension;
+        uint32_t n_uid;
+        uint32_t n_gid;
+        uint32_t n_muid;
+     
+        char data[0];
+};
+
+struct Rerror {
+        char *error;
+        uint32_t errno;         /* 9p2000.u extension */
+};
+</artwork>
+</figure>
+  </section>
+ </middle>
+ <back>
+  <references title="Normative References">
+		&rfc2119;
+		<reference anchor="PLAN9" target="http://plan9.bell-labs.com/plan9">
+    <front>
+     <title>Plan 9 Home Page</title>
+     <author initials="" surname="Lucent Technologies" fullname="Lucent Technolgoies">
+      <organization/>
+     </author>
+    </front>
+   </reference>
+   <reference anchor="P9SEC" target="http://plan9.bell-labs.com/sys/doc/auth.html">
+    <front>
+     <title>Security in Plan 9</title>
+     <author initials="R.C." surname="Cox" fullname="Russ Cox">
+      <organization>
+				MIT LCS
+			 </organization>
+     </author>
+     <author initials="E.G." surname="Grosse" fullname="Eric Grosse">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <author initials="R.P." surname="Pike" fullname="Rob Pike">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <author initials="D.P." surname="Presotto" fullname="Dave Presotto">
+      <organization>
+				Avaya Labs and Bell Labs
+			 </organization>
+     </author>
+     <author initials="S.Q." surname="Quinlan" fullname="Sean Quinlan">
+      <organization>
+				Bell Labs
+			 </organization>
+     </author>
+     <date year="2002" />
+    </front>
+    <seriesInfo name="Proceedings" value="of the Usenix Security Symposium" />
+   </reference>
+  </references>
+  <section title="Acknowledgements">
+<t>
+The 9P2010 protocol extensions evolved out of contributions from a
+number of people including:
+<list>
+	<t>Abhishek Kilkarni</t>
+	<t>Russ Cox</t>
+	<t>Lachester Ionkov</t>
+	<t>Ron Minnich</t>
+	<t>Andrey Mirtchoviski</t>
+	<t>Rob Pike</t>
+	<t>Eric Van Hensbergen</t>
+	<t>Uriel (Contentious Objector)</t>
+</list>
+</t>
+<t>
+The 9P protocol was the result of work done by the Computing Science
+Research Center of AT&T Bell Labs (now a part of Lucent Technologies) and in
+particular:
+<list>
+     <t>
+Rob Pike</t>
+     <t>
+Dave Presotto</t>
+     <t>
+Sape Mullender</t>
+     <t>
+Ken Thompson</t>
+    <t>
+Russ Cox
+</t>
+    </list>
+   </t>
+  </section>
+  <section title="Copyright">
+   <t>
+  This specification is derrived from the Plan 9 Documentation and Manual Pages.
+  The source material is
+  Copyright (C) 2003, Lucent Technologies Inc.  and others.  All Rights Reserved.
+  </t>
+   <t>
+  Extensions to the original source material are Copyright (C) 2010, the authors
+  of this document (as specified in Authors List in the References section).
+  </t>
+  </section>
+ </back>
+</rfc>
