@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
     <!ENTITY rfc2119 PUBLIC ''
-      'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
+      'http://xml2rfc.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml'>
 ]>
 <rfc category="exp" ipr="none" 
 docName="experimental-draft-9P2010-protocol"
@@ -549,7 +549,7 @@ enum {
         QTEXCL =           0x20,
         QTMOUNT =          0x10,
         QTAUTH =           0x08,
-        QTTMP =	           0x04,
+        QTTMP =            0x04,
         QTLINK =           0x02,
         QTFILE =           0x00,
 };
