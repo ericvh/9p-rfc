@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
-    <!ENTITY rfc2119 PUBLIC ''
-      'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
-]>
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd">
 <rfc category="exp" ipr="none" 
-docName="experimental-draft-9P2010-protocol"
+docName="experimental-draft-9p2000.L-protocol"
 updates="experimental-draft-9P2000-protocol">
 <?xml-stylesheet type='text/xsl' href='rfc2629.xslt' ?>
 <?rfc toc="yes" ?>
@@ -12,7 +9,7 @@ updates="experimental-draft-9P2000-protocol">
 <?rfc sortrefs="yes"?>
 <?rfc iprnotified="no" ?>
  <front>
-  <title abbrev="9P2010">Plan 9 Remote Resource Protocol</title>
+  <title abbrev="9p2000.L">Plan 9 Remote Resource Protocol</title>
   <author initials='E.V.H.' surname="Van Hensbergen" fullname='Eric Van Hensbergen'>
    <organization>
 		IBM Research
@@ -26,7 +23,7 @@ updates="experimental-draft-9P2000-protocol">
   <area>General</area>
   <keyword>Plan 9</keyword>
   <keyword>9P2000</keyword>
-  <keyword>9P2010</keyword>
+  <keyword>9p2000.L</keyword>
   <keyword>v9fs</keyword>
   <keyword>9P</keyword>
   <abstract>
@@ -50,11 +47,13 @@ updates="experimental-draft-9P2000-protocol">
 	ends up complicating clients and servers who wish to use it).
 	</t>
 	<t>
-   	9P2010 is an expanded version of the original protocol with 9P2000
+   	9p2000.L is an expanded version of the original protocol with 9P2000
 	as its core.  Extended operations representing either support for
 	UNIX environments, or even alternate approaches to the protocol
 	(such as Op from the Octopus project) exist in complimentary
-	operand spaces.
+	operand spaces.  It briefly was referenced as the 9p2010 protocol,
+    but this was retracted in form of referencing it as an extension
+    (.L)
 	</t>
   </abstract>
  </front>
@@ -63,13 +62,13 @@ updates="experimental-draft-9P2000-protocol">
    <t>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL",
 	    "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY",
 	    and "OPTIONAL" in this document are to be interpreted as
-	    described in <xref target="RFC2119"/>.</t>
+	    described in RFC2119.</t>
   </section>
   <section anchor="intro" title="Introduction">
 <t>
 Many modern UNIX systems, including Linux use a virtual file system (VFS) 
 layer as a basic level of abstraction for accessing underlying 
-implementations. Implementing 9P2010nder Linux is a matter of mapping VFS 
+implementations. Implementing 9p2000.L under Linux is a matter of mapping VFS 
 operations to their associated 9P operations. The problem, however, is that 
 9P2000 was designed for a non-UNIX system so there are several fundamental 
 differences in the functional semantics provided by 9P.
@@ -77,8 +76,8 @@ differences in the functional semantics provided by 9P.
 <t>
 To preserve compatibility with these pre-existing features we propose 
 a transparent extension to the file system semantics which minimally effects 
-the protocol syntax.  9P2010 is a dialect of 9P2000 negotiated in the 
-Tversion/Rversion exchange.  If the server agrees to 9P2010, then the wire 
+the protocol syntax.  9p2000.L is a dialect of 9P2000 negotiated in the 
+Tversion/Rversion exchange.  If the server agrees to 9p2000.L, then the wire 
 protocol that follows is 9P2000 with these changes.
 </t>
 <section title="Overview of Differences">
@@ -94,7 +93,7 @@ and user info over the wire and then contacting a user-space daemon which
 attempts to provide a valid mapping.
 </t>
 <t>
-9P2010 provides a dual approach to this problem, changes have been made
+9p2000.L provides a dual approach to this problem, changes have been made
 to the protocol to allow for numeric identifiers to be used along-side
 strings.  Servers should make every attempt to provide valid information
 for both the numeric and string form of identifiers.  Clients can then use
@@ -116,7 +115,7 @@ standard error messages.
 Again, our approach is to provide as much information as possible in
 order to help clients properly convey error conditions to end-applications
 and end-users.  As such both error strings and error codes are conveyed in
-the 9P2010 version of the protocol.  A suggested implementation is that
+the 9p2000.L version of the protocol.  A suggested implementation is that
 non-standard/unrecognized error strings/codes be made available to
 applications via some mechanism in order to communicate application
 synthetic file system events (via sysfs or procfs in Linux, or perhaps
@@ -170,7 +169,7 @@ systems are suggested to provide analogous functionality.
 <section title="Extended Attributes">
 <t>
 A relatively recent addition to VFS interfaces is the ability to have
-arbitrary key/value pairs added to file meta-data.  9P2010 doesn't
+arbitrary key/value pairs added to file meta-data.  9p2000.L doesn't
 have provisions to accomodate this feature, but it may be added in the
 future as more file systems adopt extended attributes.
 </t>
@@ -263,7 +262,7 @@ DESCRIPTION
     <t>
      <list style="empty">
       <t>
-	Support for 9P2010 is an optional extension which isn't
+	Support for 9p2000.L is an optional extension which isn't
 	quite covered in the existing version semantics for 9P2000.
 	The original protocol specification describes discarding
 	anything after an initial period in the version string.  We
@@ -272,9 +271,9 @@ DESCRIPTION
      </t>
      <t><vspace/>
 	If a client desires support for the UNIX extensions, it will
-	send the add a .u to the end of the version string (e.g. 9P2010).
+	send the add a .u to the end of the version string (e.g. 9p2000.L).
 	If a server is capable of supporting the extension, it will
-	return 9P2010 back to the client.  If the server is incapable
+	return 9p2000.L back to the client.  If the server is incapable
 	or unwilling to support the extensions, it will return the
 	version string without the extension specification (e.g. 9P2000).
      </t>
@@ -375,7 +374,7 @@ DESCRIPTION
       <t>
       The most signifigant change to the create operation is the new
       permission modes which allow for creation of special files.
-      In addition to creating directories with DMDIR, 9P2010 allows
+      In addition to creating directories with DMDIR, 9p2000.L allows
       the creation of symlinks (DMSYMLINK), devices (DMDEVICE), 
       named pipes (DMNAMEPIPE), and sockets (DMSOCKET). extension[s] 
       is a string describing special files, depending on the mode bit. 
@@ -534,7 +533,7 @@ enum {
         DMAUTH =           0x08000000,
         DMTMP =            0x04000000,
         DMSYMLINK =        0x02000000,
-        /* 9P2010 extensions */
+        /* 9p2000.L extensions */
         DMDEVICE =         0x00800000,
         DMNAMEDPIPE =      0x00200000,
         DMSOCKET =         0x00100000,
@@ -585,7 +584,6 @@ struct Rerror {
  </middle>
  <back>
   <references title="Normative References">
-		&rfc2119;
 		<reference anchor="PLAN9" target="http://plan9.bell-labs.com/plan9">
     <front>
      <title>Plan 9 Home Page</title>
@@ -629,7 +627,7 @@ struct Rerror {
   </references>
   <section title="Acknowledgements">
 <t>
-The 9P2010 protocol extensions evolved out of contributions from a
+The 9p2000.L protocol extensions evolved out of contributions from a
 number of people including:
 <list>
 	<t>Abhishek Kilkarni</t>
